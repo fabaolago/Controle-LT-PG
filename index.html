@@ -790,8 +790,7 @@ function salvarLT(){
     id:editId||Date.now().toString(),
     num,os,cartao,cadeado,ctrab,area,disc,prio,equip,desc,empresa,lider,resp,status,inicio,fim,
     criado:existente?.criado||new Date().toISOString(),
-    // preservar _fbKey para o Firebase atualizar em vez de criar novo
-    ...(existente?._fbKey?{_fbKey:existente._fbKey}:{})
+    ...(existente?._k?{_k:existente._k}:{})
   };
   if(editId){
     const i=LTS.findIndex(l=>l.id===editId);
