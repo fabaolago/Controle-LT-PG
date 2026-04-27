@@ -7,6 +7,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <!-- Firebase SDK compat -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -291,11 +292,38 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
     <div class="st" id="ftitle">Nova Liberação de Trabalho</div>
     <div class="fs">Identificação</div>
     <div class="fg">
-      <div class="fi"><label>Nº da LT *</label><input id="fnum" placeholder="LT-001234"></div>
-      <div class="fi"><label>Ordem de Serviço (OS)</label><input id="fos" placeholder="OS-9900456" oninput="autoFillOS()"></div>
+      <div class="fi">
+        <label>Nº da LT *</label>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input id="fnum" placeholder="LT-001234" oninput="checkDupLT()" style="flex:1">
+          <button type="button" class="btn bs bsm" onclick="openCamera('fnum')" title="Escanear com câmera" style="padding:7px 10px;font-size:15px">📷</button>
+        </div>
+        <div id="dup-alert" style="display:none;margin-top:6px;background:#3d1a0830;border:1px solid var(--sz-lrj);border-radius:4px;padding:8px 10px;font-size:11px;color:var(--sz-lrj)">
+          ⚠️ Esta LT já está cadastrada.
+          <button class="btn bp bsm" style="margin-left:8px;font-size:10px" onclick="irParaEdicaoDup()">✏️ Ir para edição</button>
+        </div>
+      </div>
+      <div class="fi">
+        <label>Ordem de Serviço (OS)</label>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input id="fos" placeholder="OS-9900456" oninput="autoFillOS()" style="flex:1">
+          <button type="button" class="btn bs bsm" onclick="openCamera('fos')" title="Escanear com câmera" style="padding:7px 10px;font-size:15px">📷</button>
+        </div>
+      </div>
       <div class="fi"><label>Cartão de Bloqueio</label><input id="fcartao" placeholder="CB-0087"></div>
       <div class="fi"><label>Nº do Cadeado</label><input id="fcadeado" placeholder="045"></div>
       <div class="fi"><label>Centro de Trabalho</label><input id="fctrab" placeholder="Ex: MECÂNICA-01"></div>
+      <div class="fi"><label>Área *</label>
+        <select id="farea">
+          <option value="">— Selecione a Área —</option>
+          <option value="Extração Cavacos">Extração Cavacos</option>
+          <option value="Cozimento">Cozimento</option>
+          <option value="Pré Branqueamento">Pré Branqueamento</option>
+          <option value="Depuração">Depuração</option>
+          <option value="Branqueamento">Branqueamento</option>
+          <option value="Laje DDW">Laje DDW</option>
+        </select>
+      </div>
       <div class="fi"><label>Disciplina *</label><select id="fdisc"><option value="">— Selecione —</option></select></div>
       <div class="fi"><label>Prioridade</label>
         <select id="fprio"><option value="Normal">Normal</option><option value="Alta">Alta</option><option value="Crítica">Crítica</option></select>
@@ -346,6 +374,15 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
       <option value="Crítica">Crítica</option><option value="Alta">Alta</option><option value="Normal">Normal</option>
     </select>
     <input id="feq" placeholder="Equipamento..." oninput="rLista()">
+    <select id="farea2" onchange="rLista()">
+      <option value="">Todas as áreas</option>
+      <option value="Extração Cavacos">Extração Cavacos</option>
+      <option value="Cozimento">Cozimento</option>
+      <option value="Pré Branqueamento">Pré Branqueamento</option>
+      <option value="Depuração">Depuração</option>
+      <option value="Branqueamento">Branqueamento</option>
+          <option value="Laje DDW">Laje DDW</option>
+    </select>
     <select id="fblq" onchange="rLista()">
       <option value="">Com e sem bloqueio</option>
       <option value="com">Com cartão de bloqueio</option>
@@ -359,6 +396,7 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
   </div>
   <div class="tw"><table><thead><tr>
     <th onclick="srt('num')">Nº LT ⇅</th><th onclick="srt('os')">OS ⇅</th>
+    <th onclick="srt('area')">Área ⇅</th>
     <th onclick="srt('disc')">Disciplina ⇅</th><th onclick="srt('equip')">Equipamento ⇅</th>
     <th onclick="srt('empresa')">Empresa ⇅</th><th onclick="srt('lider')">Líder ⇅</th>
     <th>Cart.Bloq.</th><th>Cadeado</th>
@@ -380,13 +418,22 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
   <div class="rg" id="rgrid"></div>
   <div class="st">
     <span id="rtitle">Relatório de LTs — Pendentes &amp; Em Execução</span>
-    <div style="display:flex;gap:5px;align-items:center">
+    <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">
+      <select id="frarea" onchange="rRel()" style="font-size:11px;padding:4px 8px;min-width:160px">
+        <option value="">Todas as áreas</option>
+        <option value="Extração Cavacos">Extração Cavacos</option>
+        <option value="Cozimento">Cozimento</option>
+        <option value="Pré Branqueamento">Pré Branqueamento</option>
+        <option value="Depuração">Depuração</option>
+        <option value="Branqueamento">Branqueamento</option>
+          <option value="Laje DDW">Laje DDW</option>
+      </select>
       <button class="btn bs bsm" id="rclr" onclick="clearRF()" style="display:none">✕ Todos</button>
       <button class="btn baz bsm" onclick="shareRelPDF()">📤 Compartilhar filtrado</button>
     </div>
   </div>
   <div class="tw"><table><thead><tr>
-    <th>Nº LT</th><th>OS</th><th>Disciplina</th><th>Equipamento</th>
+    <th>Nº LT</th><th>OS</th><th>Área</th><th>Disciplina</th><th>Equipamento</th>
     <th>Empresa</th><th>Líder</th><th>Responsável</th><th>C.Trab</th><th>Prioridade</th><th>Início</th><th>Término</th><th>Descrição</th>
   </tr></thead><tbody id="rtb"></tbody></table></div>
 </div>
@@ -486,6 +533,60 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
     <div id="posinfo" style="font-size:10px;color:var(--muted);margin-bottom:12px"></div>
     <div id="plist" style="margin-bottom:14px"></div>
     <div class="fa"><button class="btn bs" onclick="document.getElementById('mpas').classList.remove('on')">Fechar</button></div>
+  </div>
+</div>
+
+<!-- MODAL CÂMERA / OCR -->
+<div class="mo" id="mcam" onclick="closeMo(event,'mcam')">
+  <div class="md" style="max-width:440px;text-align:center">
+    <h3>📷 Ler Número com Câmera</h3>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:10px">
+      Aponte para o número da LT ou OS no formulário físico e tire uma foto
+    </div>
+    <!-- Câmera ao vivo -->
+    <div id="cam-live" style="position:relative;border-radius:8px;overflow:hidden;background:#000;margin-bottom:10px">
+      <video id="camvideo" style="width:100%;max-height:260px;object-fit:cover" autoplay playsinline muted></video>
+      <!-- Moldura de mira -->
+      <div style="position:absolute;inset:0;pointer-events:none;display:flex;align-items:center;justify-content:center">
+        <div style="width:75%;height:55%;border:2px solid var(--sz-aml);border-radius:6px;
+          box-shadow:0 0 0 2000px rgba(0,0,0,.45);position:relative">
+          <div style="position:absolute;top:-1px;left:-1px;width:16px;height:16px;border-top:3px solid var(--sz-aml);border-left:3px solid var(--sz-aml)"></div>
+          <div style="position:absolute;top:-1px;right:-1px;width:16px;height:16px;border-top:3px solid var(--sz-aml);border-right:3px solid var(--sz-aml)"></div>
+          <div style="position:absolute;bottom:-1px;left:-1px;width:16px;height:16px;border-bottom:3px solid var(--sz-aml);border-left:3px solid var(--sz-aml)"></div>
+          <div style="position:absolute;bottom:-1px;right:-1px;width:16px;height:16px;border-bottom:3px solid var(--sz-aml);border-right:3px solid var(--sz-aml)"></div>
+          <div style="position:absolute;bottom:-22px;left:0;right:0;text-align:center;font-size:9px;color:var(--sz-aml);font-weight:700;letter-spacing:.5px">POSICIONE O NÚMERO AQUI</div>
+        </div>
+      </div>
+      <button onclick="capturePhoto()" style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);
+        background:var(--sz-aml);border:none;color:#000;font-size:11px;font-weight:800;
+        padding:8px 20px;border-radius:20px;cursor:pointer;font-family:var(--fh);letter-spacing:.5px">
+        📸 CAPTURAR
+      </button>
+    </div>
+    <!-- Canvas oculto para processar imagem -->
+    <canvas id="camcanvas" style="display:none"></canvas>
+    <!-- Preview da foto capturada -->
+    <div id="cam-preview" style="display:none;margin-bottom:10px">
+      <img id="cam-img" style="width:100%;border-radius:6px;border:1px solid var(--bdr)">
+      <div id="cam-ocr-status" style="font-size:11px;color:var(--muted);margin-top:6px;min-height:18px"></div>
+    </div>
+    <!-- Resultado OCR com opções -->
+    <div id="cam-candidates" style="display:none;margin-bottom:10px">
+      <div style="font-size:10px;color:var(--muted);text-align:left;margin-bottom:5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase">Números encontrados — toque para usar:</div>
+      <div id="cam-cand-list" style="display:flex;flex-wrap:wrap;gap:6px;justify-content:center"></div>
+    </div>
+    <!-- Campo manual sempre visível -->
+    <div style="border-top:1px solid var(--bdr);padding-top:10px;margin-top:4px">
+      <div style="font-size:10px;color:var(--muted);text-align:left;margin-bottom:5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase">Ou digite diretamente:</div>
+      <div style="display:flex;gap:7px">
+        <input id="cam-manual" placeholder="Ex: 000001A ou 20750014" style="flex:1;font-size:14px;font-weight:700;text-align:center;letter-spacing:1px">
+        <button class="btn bp bsm" onclick="confirmCamManual()">✔ Usar</button>
+      </div>
+    </div>
+    <div class="fa" style="justify-content:center;margin-top:12px">
+      <button class="btn bs" onclick="closeCamera()">✕ Fechar</button>
+      <button class="btn bs bsm" id="cam-retry" style="display:none" onclick="retryCam()">🔄 Nova foto</button>
+    </div>
   </div>
 </div>
 
@@ -678,7 +779,180 @@ function kpiF(f){
   rLista();
 }
 
-// ═══ FORM ══════════════════════════════════════════════════════════
+// ═══ DUPLICATA ════════════════════════════════════════════════════
+function checkDupLT(){
+  if(editId)return; // em modo edição não verifica
+  const val=document.getElementById('fnum').value.trim().toUpperCase();
+  const alert=document.getElementById('dup-alert');
+  if(!val){alert.style.display='none';return;}
+  const dup=LTS.find(l=>l.num===val);
+  if(dup){
+    alert.style.display='block';
+    alert._dupId=dup.id;
+  } else {
+    alert.style.display='none';
+  }
+}
+function irParaEdicaoDup(){
+  const alert=document.getElementById('dup-alert');
+  const id=alert._dupId;
+  if(!id)return;
+  alert.style.display='none';
+  editLT(id);
+  toast('✏️ Editando LT existente');
+}
+
+// ═══ CÂMERA / OCR ═════════════════════════════════════════════════
+let _camTarget=null,_camStream=null;
+
+function openCamera(targetId){
+  _camTarget=targetId;
+  document.getElementById('cam-manual').value='';
+  document.getElementById('cam-preview').style.display='none';
+  document.getElementById('cam-candidates').style.display='none';
+  document.getElementById('cam-retry').style.display='none';
+  document.getElementById('cam-live').style.display='block';
+  document.getElementById('mcam').classList.add('on');
+  startCam();
+}
+
+async function startCam(){
+  try{
+    _camStream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:'environment',width:{ideal:1920},height:{ideal:1080}}
+    });
+    const vid=document.getElementById('camvideo');
+    vid.srcObject=_camStream;
+    await vid.play();
+  }catch(e){
+    document.getElementById('cam-live').style.display='none';
+    document.getElementById('cam-preview').style.display='none';
+    const info=document.getElementById('cam-ocr-status');
+    if(info)info.textContent='';
+    toast('⚠️ Câmera indisponível — use o campo manual','err');
+    document.getElementById('cam-manual').focus();
+  }
+}
+
+function capturePhoto(){
+  const vid=document.getElementById('camvideo');
+  const canvas=document.getElementById('camcanvas');
+  if(!vid.videoWidth){toast('⚠️ Câmera ainda carregando...','err');return;}
+  // Capturar frame completo
+  canvas.width=vid.videoWidth;
+  canvas.height=vid.videoHeight;
+  const ctx=canvas.getContext('2d');
+  ctx.drawImage(vid,0,0);
+  // Recortar área da moldura (75% largura, 55% altura, centralizado)
+  const cw=Math.round(vid.videoWidth*0.75);
+  const ch=Math.round(vid.videoHeight*0.55);
+  const cx=Math.round((vid.videoWidth-cw)/2);
+  const cy=Math.round((vid.videoHeight-ch)/2);
+  const crop=document.createElement('canvas');
+  crop.width=cw;crop.height=ch;
+  crop.getContext('2d').drawImage(canvas,cx,cy,cw,ch,0,0,cw,ch);
+  // Pré-processamento: escala 2x + alto contraste
+  const big=document.createElement('canvas');
+  big.width=cw*2;big.height=ch*2;
+  const bctx=big.getContext('2d');
+  bctx.imageSmoothingEnabled=false;
+  bctx.drawImage(crop,0,0,big.width,big.height);
+  // Aumentar contraste
+  const idata=bctx.getImageData(0,0,big.width,big.height);
+  const d=idata.data;
+  for(let i=0;i<d.length;i+=4){
+    const gray=0.299*d[i]+0.587*d[i+1]+0.114*d[i+2];
+    const v=gray>128?255:0;
+    d[i]=d[i+1]=d[i+2]=v;
+  }
+  bctx.putImageData(idata,0,0);
+  // Mostrar preview
+  const img=document.getElementById('cam-img');
+  img.src=big.toDataURL('image/png');
+  document.getElementById('cam-live').style.display='none';
+  document.getElementById('cam-preview').style.display='block';
+  document.getElementById('cam-retry').style.display='inline-flex';
+  document.getElementById('cam-candidates').style.display='none';
+  document.getElementById('cam-ocr-status').textContent='🔍 Lendo texto...';
+  runOCR(big);
+}
+
+async function runOCR(canvas){
+  try{
+    if(typeof Tesseract==='undefined'){
+      document.getElementById('cam-ocr-status').textContent='⚠️ OCR não carregado — use o campo manual';
+      return;
+    }
+    const result=await Tesseract.recognize(canvas,'por+eng',{
+      logger:m=>{
+        if(m.status==='recognizing text'){
+          document.getElementById('cam-ocr-status').textContent=
+            `🔍 Processando... ${Math.round(m.progress*100)}%`;
+        }
+      }
+    });
+    const raw=result.data.text;
+    // Extrair candidatos: sequências alfanuméricas com 4-12 chars
+    const matches=[...new Set(
+      (raw.match(/[A-Z0-9]{4,12}/gi)||[])
+        .map(s=>s.toUpperCase().replace(/[^A-Z0-9]/g,''))
+        .filter(s=>s.length>=4)
+    )];
+    if(!matches.length){
+      document.getElementById('cam-ocr-status').textContent=
+        '⚠️ Nenhum número encontrado — tente novamente ou use o campo manual';
+      return;
+    }
+    document.getElementById('cam-ocr-status').textContent=
+      `✅ ${matches.length} candidato${matches.length>1?'s':''} encontrado${matches.length>1?'s':''}`;
+    document.getElementById('cam-candidates').style.display='block';
+    document.getElementById('cam-cand-list').innerHTML=matches.map(m=>
+      `<button onclick="applyCamResult('${m}')" style="
+        background:var(--card2);border:1px solid var(--sz-aml);color:var(--sz-aml);
+        font-family:var(--fh);font-size:16px;font-weight:800;letter-spacing:1.5px;
+        padding:8px 14px;border-radius:5px;cursor:pointer;transition:background .15s"
+        onmouseover="this.style.background='var(--sz-aml)';this.style.color='#000'"
+        onmouseout="this.style.background='var(--card2)';this.style.color='var(--sz-aml)'"
+      >${m}</button>`
+    ).join('');
+  }catch(e){
+    document.getElementById('cam-ocr-status').textContent='❌ Erro OCR: '+e.message;
+  }
+}
+
+function retryCam(){
+  document.getElementById('cam-live').style.display='block';
+  document.getElementById('cam-preview').style.display='none';
+  document.getElementById('cam-candidates').style.display='none';
+  document.getElementById('cam-retry').style.display='none';
+  if(!_camStream)startCam();
+}
+
+function applyCamResult(val){
+  const clean=val.trim().toUpperCase();
+  const el=document.getElementById(_camTarget);
+  if(el){
+    el.value=clean;
+    el.dispatchEvent(new Event('input'));
+  }
+  closeCamera();
+  toast('✔ Número aplicado: '+clean);
+}
+
+function confirmCamManual(){
+  const val=document.getElementById('cam-manual').value.trim();
+  if(!val){toast('⚠️ Digite um valor','err');return;}
+  applyCamResult(val);
+}
+
+function closeCamera(){
+  if(_camStream){_camStream.getTracks().forEach(t=>t.stop());_camStream=null;}
+  const vid=document.getElementById('camvideo');if(vid)vid.srcObject=null;
+  document.getElementById('mcam').classList.remove('on');
+  _camTarget=null;
+}
+
+
 function autoFillOS(){
   const v=document.getElementById('fos').value.trim().toUpperCase();
   if(!v)return;
@@ -706,6 +980,7 @@ function salvarLT(){
   const cartao=document.getElementById('fcartao').value.trim();
   const cadeado=document.getElementById('fcadeado').value.trim();
   const ctrab=document.getElementById('fctrab').value.trim();
+  const area=document.getElementById('farea').value;
   const disc=document.getElementById('fdisc').value;
   const prio=document.getElementById('fprio').value;
   const equip=document.getElementById('fequip').value.trim();
@@ -718,8 +993,14 @@ function salvarLT(){
   const fim=document.getElementById('ffim').value;
   if(!num||!disc||!equip||!empresa||!lider){toast('⚠️ Preencha os campos obrigatórios!','err');return;}
   if(inicio&&fim&&new Date(fim)<=new Date(inicio)){toast('⚠️ Término deve ser após o início!','err');return;}
-  if(!editId&&LTS.find(l=>l.num===num)){toast('⚠️ Nº LT já cadastrado!','err');return;}
-  const obj={id:editId||Date.now().toString(),num,os,cartao,cadeado,ctrab,disc,prio,equip,desc,empresa,lider,resp,status,inicio,fim,
+  if(!editId){
+    const dup=LTS.find(l=>l.num===num);
+    if(dup){
+      if(confirm('LT '+num+' já existe.\nDeseja editar a LT existente?')){editLT(dup.id);}
+      return;
+    }
+  }
+  const obj={id:editId||Date.now().toString(),num,os,cartao,cadeado,ctrab,area,disc,prio,equip,desc,empresa,lider,resp,status,inicio,fim,
     criado:editId?(LTS.find(l=>l.id===editId)?.criado||new Date().toISOString()):new Date().toISOString()};
   if(editId){const i=LTS.findIndex(l=>l.id===editId);if(i!==-1)LTS[i]=obj;editId=null;
     document.getElementById('ftitle').textContent='Nova Liberação de Trabalho';}
@@ -735,15 +1016,17 @@ function limparForm(){
   ['fnum','fos','fcartao','fcadeado','fctrab','fequip','fdesc','fempresa','flider','fresp','finicio','ffim']
     .forEach(id=>document.getElementById(id).value='');
   document.getElementById('fdisc').value='';
+  document.getElementById('farea').value='';
   document.getElementById('fstatus').value='P';
   document.getElementById('fprio').value='Normal';
+  const da=document.getElementById('dup-alert');if(da)da.style.display='none';
   editId=null;document.getElementById('ftitle').textContent='Nova Liberação de Trabalho';
 }
 function editLT(id){
   const l=LTS.find(x=>x.id===id);if(!l)return;editId=id;
   const m={num:'fnum',os:'fos',cartao:'fcartao',cadeado:'fcadeado',ctrab:'fctrab',equip:'fequip',
     desc:'fdesc',empresa:'fempresa',lider:'flider',resp:'fresp',inicio:'finicio',fim:'ffim',
-    disc:'fdisc',status:'fstatus',prio:'fprio'};
+    disc:'fdisc',area:'farea',status:'fstatus',prio:'fprio'};
   Object.entries(m).forEach(([k,fid])=>document.getElementById(fid).value=l[k]||'');
   document.getElementById('ftitle').textContent='Editar LT — '+l.num;
   document.querySelectorAll('.tb').forEach(b=>b.classList.remove('on'));
@@ -782,7 +1065,12 @@ function saveMSts(){
   toast('✔ Status atualizado!');
   if(!window._fbOk)render();
 }
-function closeMo(e,id){if(e.target.id===id)document.getElementById(id).classList.remove('on');}
+function closeMo(e,id){
+  if(e.target.id===id){
+    if(id==='mcam'){closeCamera();return;}
+    document.getElementById(id).classList.remove('on');
+  }
+}
 
 // ═══ SORT / FILTER ═════════════════════════════════════════════════
 function srt(f){if(sField===f)sAsc=!sAsc;else{sField=f;sAsc=true;}rLista();}
@@ -799,20 +1087,22 @@ function getFilt(){
   const prio=document.getElementById('fpri')?.value||'';
   const eq=(document.getElementById('feq')?.value||'').toLowerCase();
   const blq=document.getElementById('fblq')?.value||'';
+  const area=document.getElementById('farea2')?.value||'';
   return LTS.filter(l=>{
     if(disc&&l.disc!==disc)return false;if(sts&&l.status!==sts)return false;
     if(prio&&l.prio!==prio)return false;if(eq&&!(l.equip||'').toLowerCase().includes(eq))return false;
     if(blq==='com'&&!l.cartao)return false;if(blq==='sem'&&l.cartao)return false;
-    if(txt){const h=(l.num+l.os+l.cartao+l.cadeado+l.equip+l.empresa+l.lider+l.desc).toLowerCase();if(!h.includes(txt))return false;}
+    if(area&&l.area!==area)return false;
+    if(txt){const h=(l.num+l.os+l.cartao+l.cadeado+l.equip+l.empresa+l.lider+l.desc+(l.area||'')).toLowerCase();if(!h.includes(txt))return false;}
     return true;
   });
 }
 function clearF(){
-  ['ftxt','fdisc2','fsts','fpri','feq','fblq'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});rLista();
+  ['ftxt','fdisc2','fsts','fpri','feq','fblq','farea2'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});rLista();
 }
 function filtDisc(disc){
   document.getElementById('fdisc2').value=disc;
-  ['ftxt','fsts','fpri','feq','fblq'].forEach(id=>document.getElementById(id).value='');
+  ['ftxt','fsts','fpri','feq','fblq','farea2'].forEach(id=>document.getElementById(id).value='');
   document.querySelectorAll('.tb').forEach(b=>b.classList.remove('on'));
   document.querySelectorAll('.tb')[2].classList.add('on');
   document.querySelectorAll('.tp').forEach(p=>p.classList.remove('on'));
@@ -824,12 +1114,15 @@ function rLista(){
   const fl=getSorted(getFilt());
   document.getElementById('lcount').textContent=`${fl.length} de ${LTS.length} LTs`;
   const tb=document.getElementById('ltb');
-  if(!fl.length){tb.innerHTML=`<tr><td colspan="13"><div class="es"><div class="ei">🔍</div><p>Nenhuma LT.</p></div></td></tr>`;return;}
+  if(!fl.length){tb.innerHTML=`<tr><td colspan="14"><div class="es"><div class="ei">🔍</div><p>Nenhuma LT.</p></div></td></tr>`;return;}
   tb.innerHTML=fl.map(l=>{const od=ovd(l);const lt2=late(l);
+    const areaBadge=l.area?`<span style="font-size:9px;font-weight:800;padding:1px 6px;border-radius:3px;background:#1932c820;color:#60a5fa;border:1px solid #1932c8">${l.area}</span>`:'—';
     return`<tr class="${od||lt2?'ra':''}">
       <td class="ln">${l.num}${od?' 🔴':lt2?' 🟠':''}</td>
-      <td class="sc">${l.os||'—'}</td><td>${dspan(l.disc)}</td>
-      <td class="hi" style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${l.equip}">${l.equip}</td>
+      <td class="sc">${l.os||'—'}</td>
+      <td>${areaBadge}</td>
+      <td>${dspan(l.disc)}</td>
+      <td class="hi" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${l.equip}">${l.equip}</td>
       <td class="hi">${l.empresa||'—'}</td><td class="hi">${l.lider||'—'}</td>
       <td class="sc">${l.cartao||'—'}</td><td class="sc">${l.cadeado||'—'}</td>
       <td class="pr-${(l.prio||'N')[0]}">${l.prio||'Normal'}</td>
@@ -846,7 +1139,6 @@ function rLista(){
 
 // ═══ RELATÓRIO ════════════════════════════════════════════════════
 function setRF(f){relF=relF===f?null:f;rRel();}
-function clearRF(){relF=null;rRel();}
 function rRel(){
   const tot=LTS.length,pend=LTS.filter(l=>l.status==='P').length,
     exec=LTS.filter(l=>l.status==='E').length,conc=LTS.filter(l=>l.status==='C').length,
@@ -876,17 +1168,24 @@ function rRel(){
             <div class="brn" style="color:${r.c}">${r.v}</div></div>`).join('')}
       </div></div>`;}).join('');
   let rows;const clr=document.getElementById('rclr');const tit=document.getElementById('rtitle');
+  const rareaEl=document.getElementById('frarea');
+  const rareaVal=rareaEl?rareaEl.value:'';
+  const sortPrio=(a,b)=>{const o={Crítica:0,Alta:1,Normal:2};return(o[a.prio]??2)-(o[b.prio]??2);};
+  const areaFilt=r=>!rareaVal||(r.area===rareaVal);
   if(relF){
-    rows=LTS.filter(l=>l.status===relF).sort((a,b)=>{const o={Crítica:0,Alta:1,Normal:2};return(o[a.prio]??2)-(o[b.prio]??2)});
-    tit.textContent=`Relatório de LTs — ${stl(relF)} (${rows.length})`;clr.style.display='inline-flex';
+    rows=LTS.filter(l=>l.status===relF&&areaFilt(l)).sort(sortPrio);
+    tit.textContent=`Relatório de LTs — ${stl(relF)}${rareaVal?' · '+rareaVal:''} (${rows.length})`;clr.style.display='inline-flex';
   } else {
-    rows=LTS.filter(l=>l.status==='P'||l.status==='E').sort((a,b)=>{const o={Crítica:0,Alta:1,Normal:2};return(o[a.prio]??2)-(o[b.prio]??2)});
-    tit.textContent='Relatório de LTs — Pendentes & Em Execução';clr.style.display='none';
+    rows=LTS.filter(l=>(l.status==='P'||l.status==='E')&&areaFilt(l)).sort(sortPrio);
+    tit.textContent='Relatório de LTs — Pendentes & Em Execução'+(rareaVal?' · '+rareaVal:'');clr.style.display='none';
   }
   const tb=document.getElementById('rtb');
-  if(!rows.length){tb.innerHTML=`<tr><td colspan="10" style="text-align:center;padding:22px;color:var(--muted)">Nenhuma LT neste filtro.</td></tr>`;return;}
-  tb.innerHTML=rows.map(l=>{const od=ovd(l);return`<tr class="${od?'ra':''}">
+  if(!rows.length){tb.innerHTML=`<tr><td colspan="13" style="text-align:center;padding:22px;color:var(--muted)">Nenhuma LT neste filtro.</td></tr>`;return;}
+  tb.innerHTML=rows.map(l=>{const od=ovd(l);
+    const areaBadge=l.area?`<span style="font-size:9px;font-weight:800;padding:1px 6px;border-radius:3px;background:#1932c820;color:#60a5fa;border:1px solid #1932c8">${l.area}</span>`:'—';
+    return`<tr class="${od?'ra':''}">
     <td class="ln">${l.num}${od?' 🔴':''}</td><td class="sc">${l.os||'—'}</td>
+    <td>${areaBadge}</td>
     <td>${dspan(l.disc)}</td><td class="hi">${l.equip}</td>
     <td class="hi">${l.empresa||'—'}</td><td class="hi">${l.lider||'—'}</td>
     <td class="sc">${l.resp||'—'}</td>
@@ -894,9 +1193,10 @@ function rRel(){
     <td class="pr-${(l.prio||'N')[0]}">${l.prio||'Normal'}</td>
     <td class="sc" style="font-size:11px">${fdt(l.inicio)}</td>
     <td style="font-size:11px;color:${od?'var(--sz-brd)':'var(--muted)'}">${fdt(l.fim)}</td>
-    <td class="sc" style="font-size:11px;max-width:130px">${l.desc||'—'}</td>
+    <td class="sc" style="font-size:11px;max-width:120px">${l.desc||'—'}</td>
   </tr>`;}).join('');
 }
+function clearRF(){relF=null;const e=document.getElementById('frarea');if(e)e.value='';rRel();}
 
 // ═══ CRONOGRAMA ════════════════════════════════════════════════════
 function dropXLSX(e){e.preventDefault();document.getElementById('ciz').classList.remove('drag');const f=e.dataTransfer.files[0];if(f)procXLSX(f);}
