@@ -7,6 +7,62 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- Firebase SDK compat -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script>
+const _FB={
+  apiKey:"AIzaSyB0t5EyCmDwk8Hw_pkRQHWAVtcfBKCOqio",
+  authDomain:"controle-lt-pg-4588a.firebaseapp.com",
+  databaseURL:"https://controle-lt-pg-4588a-default-rtdb.firebaseio.com",
+  projectId:"controle-lt-pg-4588a",
+  storageBucket:"controle-lt-pg-4588a.firebasestorage.app",
+  messagingSenderId:"287602590670",
+  appId:"1:287602590670:web:d3cbe5a07b2dc9c80ee19f"
+};
+window._fbOk=false;
+window._fbReady=false;
+try{
+  firebase.initializeApp(_FB);
+  const _db=firebase.database();
+  // Escuta LTs em tempo real
+  _db.ref('lts').on('value',snap=>{
+    const v=snap.val();
+    window._LTS_FB=v?Object.entries(v).map(([k,r])=>({...r,_k:k})):[];
+    if(window._fbReady){LTS=window._LTS_FB;render();updAlarms();}
+  });
+  // Escuta cronogramas em tempo real
+  _db.ref('cronos').on('value',snap=>{
+    const v=snap.val();
+    window._CRON_FB=v?Object.entries(v).map(([k,r])=>({...r,_k:k})):[];
+    if(window._fbReady){CRONOS=window._CRON_FB;render();}
+  });
+  // Funções de escrita
+  window._fbSave=async function(lt){
+    const d={...lt};delete d._k;
+    if(lt._k){await _db.ref('lts/'+lt._k).update(d);}
+    else{const r=_db.ref('lts').push();d.id=r.key;await r.set(d);}
+  };
+  window._fbDel=async function(lt){
+    if(lt._k)await _db.ref('lts/'+lt._k).remove();
+  };
+  window._fbSaveCronos=async function(arr){
+    await _db.ref('cronos').remove();
+    for(const c of arr){const d={...c};delete d._k;await _db.ref('cronos').push(d);}
+  };
+  window._fbOk=true;
+  window.addEventListener('DOMContentLoaded',()=>{
+    const el=document.getElementById('fbst');
+    if(el){el.textContent='🟢 Online';el.style.color='#00c85a';}
+  });
+}catch(e){
+  console.error('Firebase:',e);
+  window.addEventListener('DOMContentLoaded',()=>{
+    const el=document.getElementById('fbst');
+    if(el){el.textContent='🔴 Offline';el.style.color='#b44b5a';}
+  });
+}
+</script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500;600&display=swap');
 :root{
@@ -199,7 +255,11 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
     </div>
   </div>
   <div style="display:flex;align-items:center;gap:11px;flex-wrap:wrap">
-    <div><div id="clock">--:--:--</div><div id="hdate"></div></div>
+    <div>
+      <div id="clock">--:--:--</div>
+      <div id="hdate"></div>
+      <div id="fbst" style="font-size:10px;font-weight:700;letter-spacing:.3px;color:#c8910f">⏳ Conectando...</div>
+    </div>
     <button id="abell" onclick="openAlarm()" title="Alarmes">🔔<span id="abadge"></span></button>
   </div>
 </header>
@@ -452,6 +512,14 @@ let sField='num',sAsc=true,editId=null,mStsId=null,mPasId=null,relF=null;
 
 function sv(){localStorage.setItem('lts5',JSON.stringify(LTS));}
 function svc(){localStorage.setItem('cro5',JSON.stringify(CRONOS));localStorage.setItem('cm5',JSON.stringify(CMETA));}
+function syncBar(on){
+  let b=document.getElementById('syncbar');
+  if(!b){b=document.createElement('div');b.id='syncbar';
+    b.style.cssText='position:fixed;top:0;left:0;height:3px;background:#1932c8;z-index:9999;transition:width .4s,opacity .4s';
+    document.body.appendChild(b);}
+  if(on){b.style.width='60%';b.style.opacity='1';}
+  else{b.style.width='100%';setTimeout(()=>{b.style.opacity='0';setTimeout(()=>b.style.width='0',400);},300);}
+}
 
 // ═══ HELPERS ═════════════════════════════════════════════════════
 function dn(id){return DISC.find(d=>d.id===id)||{n:id||'—'};}
@@ -656,7 +724,12 @@ function salvarLT(){
   if(editId){const i=LTS.findIndex(l=>l.id===editId);if(i!==-1)LTS[i]=obj;editId=null;
     document.getElementById('ftitle').textContent='Nova Liberação de Trabalho';}
   else LTS.push(obj);
-  sv();limparForm();toast('✔ LT salva!');render();
+  if(window._fbOk&&window._fbSave){
+    syncBar(true);
+    window._fbSave(obj).then(()=>syncBar(false)).catch(e=>{syncBar(false);toast('⚠️ Erro sync: '+e.message,'err');});
+  } else {sv();}
+  limparForm();toast('✔ LT salva!');
+  if(!window._fbOk)render();
 }
 function limparForm(){
   ['fnum','fos','fcartao','fcadeado','fctrab','fequip','fdesc','fempresa','flider','fresp','finicio','ffim']
@@ -680,7 +753,13 @@ function editLT(id){
 }
 function delLT(id){
   const l=LTS.find(x=>x.id===id);if(!l||!confirm('Excluir LT '+l.num+'?'))return;
-  LTS=LTS.filter(x=>x.id!==id);sv();render();toast('🗑️ LT excluída.');
+  LTS=LTS.filter(x=>x.id!==id);
+  if(window._fbOk&&window._fbDel){
+    syncBar(true);
+    window._fbDel(l).then(()=>syncBar(false)).catch(e=>{syncBar(false);toast('⚠️ Erro: '+e.message,'err');});
+  } else {sv();render();}
+  toast('🗑️ LT excluída.');
+  if(!window._fbOk)render();
 }
 
 // ═══ MODAL STATUS ══════════════════════════════════════════════════
@@ -695,7 +774,13 @@ function saveMSts(){
   const l=LTS.find(x=>x.id===mStsId);if(!l)return;
   l.status=document.getElementById('mstssel').value;
   const obs=document.getElementById('mobs').value.trim();if(obs)l.obs=obs;
-  sv();document.getElementById('msts').classList.remove('on');render();toast('✔ Status atualizado!');
+  document.getElementById('msts').classList.remove('on');
+  if(window._fbOk&&window._fbSave){
+    syncBar(true);
+    window._fbSave(l).then(()=>syncBar(false)).catch(e=>{syncBar(false);toast('⚠️ Erro: '+e.message,'err');});
+  } else {sv();render();}
+  toast('✔ Status atualizado!');
+  if(!window._fbOk)render();
 }
 function closeMo(e,id){if(e.target.id===id)document.getElementById(id).classList.remove('on');}
 
@@ -881,7 +966,12 @@ function applyMap(){
       os:gv(row,co),empresa:gv(row,ce),tag:gv(row,ct),ctrab:gv(row,cc),
       resp:gv(row,cr),facilitador:gv(row,cfac),passos:[]};
   }).filter(Boolean);
-  svc();rawSheet=null;
+  svc();
+  if(window._fbOk&&window._fbSaveCronos){
+    syncBar(true);
+    window._fbSaveCronos(CRONOS).then(()=>syncBar(false)).catch(e=>{syncBar(false);console.error(e);});
+  }
+  rawSheet=null;
   document.getElementById('colmap').style.display='none';
   document.getElementById('ciz').style.display='none';
   document.getElementById('cprev').style.display='none';
@@ -968,7 +1058,11 @@ function rPasList(c){
 function togPas(cid,idx){
   const c=CRONOS.find(x=>x.id===cid);if(!c)return;
   if(!c.passos)c.passos=[];c.passos[idx].done=!c.passos[idx].done;
-  svc();rPasList(c);rCrono();
+  svc();
+  if(window._fbOk&&window._fbSaveCronos){
+    window._fbSaveCronos(CRONOS).catch(e=>console.error(e));
+  }
+  rPasList(c);rCrono();
 }
 function delPas(cid,idx){
   const c=CRONOS.find(x=>x.id===cid);if(!c||!c.passos)return;
@@ -1087,27 +1181,36 @@ function render(){
 // ═══ INIT ═════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded',function(){
   fillSel();
-  if(!LTS.length){
-    const n=new Date();
-    function dt(dh){const d=new Date(n);d.setHours(n.getHours()+dh,0,0,0);return d.toISOString().slice(0,16);}
-    LTS=[
-      {id:'d1',num:'LT-000001',os:'OS-9900401',cartao:'CB-001',cadeado:'045',disc:'mecanica',
-       equip:'Digestor L1 — Raspa inferior',desc:'Substituição de rolamento',empresa:'Mecânica Industrial Ltda',
-       lider:'Carlos Menezes',status:'P',prio:'Crítica',inicio:dt(-3),fim:dt(-1),criado:n.toISOString()},
-      {id:'d2',num:'LT-000002',os:'OS-9900402',cartao:'CB-002',cadeado:'046',disc:'eletrica',
-       equip:'Bomba de licor BL-102',desc:'Manutenção motor 160kW',empresa:'Eletro Sul',
-       lider:'André Rocha',status:'E',prio:'Alta',inicio:dt(-1),fim:dt(4),criado:n.toISOString()},
-      {id:'d3',num:'LT-000003',os:'OS-9900403',cartao:'CB-003',cadeado:'047',disc:'instrumentacao',
-       equip:'121LT014 — Nível digestor',desc:'Substituição sensor nível',empresa:'Instr. Técnica',
-       lider:'Paulo Faria',status:'C',prio:'Crítica',inicio:dt(-8),fim:dt(-4),criado:n.toISOString()},
-      {id:'d4',num:'LT-000004',os:'',cartao:'',cadeado:'',disc:'hidrojato',
-       equip:'Evaporadores — Módulo 3',desc:'Limpeza tubos',empresa:'HidroServ',
-       lider:'Ronaldo Lima',status:'P',prio:'Normal',inicio:dt(2),fim:dt(10),criado:n.toISOString()},
-      {id:'d5',num:'LT-000005',os:'OS-9900405',cartao:'CB-005',cadeado:'051',disc:'caldeiraria',
-       equip:'Caldeira recuperação CR-1',desc:'Inspeção reparos',empresa:'Calderaria Norte',
-       lider:'Renato Souza',status:'P',prio:'Alta',inicio:dt(1),fim:dt(8),criado:n.toISOString()},
-    ];
-    sv();
+  // Se Firebase conectado, aguarda dados chegarem (onValue já disparou)
+  if(window._fbOk){
+    // Usar dados do Firebase se já chegaram, senão localStorage como fallback
+    if(window._LTS_FB&&window._LTS_FB.length){LTS=window._LTS_FB;}
+    if(window._CRON_FB&&window._CRON_FB.length){CRONOS=window._CRON_FB;}
+    window._fbReady=true;
+  } else {
+    // Modo local — dados demo se vazio
+    if(!LTS.length){
+      const n=new Date();
+      function dt(dh){const d=new Date(n);d.setHours(n.getHours()+dh,0,0,0);return d.toISOString().slice(0,16);}
+      LTS=[
+        {id:'d1',num:'LT-000001',os:'OS-9900401',cartao:'CB-001',cadeado:'045',disc:'mecanica',
+         equip:'Digestor L1 — Raspa inferior',desc:'Substituição de rolamento',empresa:'Mecânica Industrial Ltda',
+         lider:'Carlos Menezes',status:'P',prio:'Crítica',inicio:dt(-3),fim:dt(-1),criado:n.toISOString()},
+        {id:'d2',num:'LT-000002',os:'OS-9900402',cartao:'CB-002',cadeado:'046',disc:'eletrica',
+         equip:'Bomba de licor BL-102',desc:'Manutenção motor 160kW',empresa:'Eletro Sul',
+         lider:'André Rocha',status:'E',prio:'Alta',inicio:dt(-1),fim:dt(4),criado:n.toISOString()},
+        {id:'d3',num:'LT-000003',os:'OS-9900403',cartao:'CB-003',cadeado:'047',disc:'instrumentacao',
+         equip:'121LT014 — Nível digestor',desc:'Substituição sensor nível',empresa:'Instr. Técnica',
+         lider:'Paulo Faria',status:'C',prio:'Crítica',inicio:dt(-8),fim:dt(-4),criado:n.toISOString()},
+        {id:'d4',num:'LT-000004',os:'',cartao:'',cadeado:'',disc:'hidrojato',
+         equip:'Evaporadores — Módulo 3',desc:'Limpeza tubos',empresa:'HidroServ',
+         lider:'Ronaldo Lima',status:'P',prio:'Normal',inicio:dt(2),fim:dt(10),criado:n.toISOString()},
+        {id:'d5',num:'LT-000005',os:'OS-9900405',cartao:'CB-005',cadeado:'051',disc:'caldeiraria',
+         equip:'Caldeira recuperação CR-1',desc:'Inspeção reparos',empresa:'Calderaria Norte',
+         lider:'Renato Souza',status:'P',prio:'Alta',inicio:dt(1),fim:dt(8),criado:n.toISOString()},
+      ];
+      sv();
+    }
   }
   showCMeta();
   render();
