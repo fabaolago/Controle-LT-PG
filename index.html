@@ -371,15 +371,32 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
       <option value="Crítica">Crítica</option><option value="Alta">Alta</option><option value="Normal">Normal</option>
     </select>
     <input id="feq" placeholder="Equipamento..." oninput="rLista()">
-    <select id="farea2" onchange="rLista()">
-      <option value="">Todas as áreas</option>
-      <option value="Extração Cavacos">Extração Cavacos</option>
-      <option value="Cozimento">Cozimento</option>
-      <option value="Pré Branqueamento">Pré Branqueamento</option>
-      <option value="Depuração">Depuração</option>
-      <option value="Branqueamento">Branqueamento</option>
-          <option value="Laje DDW">Laje DDW</option>
-    </select>
+    <div style="position:relative;flex:1;min-width:155px">
+      <button onclick="toggleAreaDrop('lista')" id="area-btn-lista"
+        style="width:100%;background:var(--bg);border:1px solid var(--bdr);border-radius:4px;
+        color:var(--text);font-family:var(--fb);font-size:12px;padding:5px 9px;text-align:left;
+        cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="area-btn-lista">
+        Todas as áreas ▾
+      </button>
+      <div id="area-drop-lista" style="display:none;position:absolute;top:100%;left:0;z-index:300;
+        background:var(--card);border:1px solid var(--sz-aml);border-radius:5px;padding:8px;
+        min-width:200px;box-shadow:0 4px 20px rgba(0,0,0,.5)">
+        <div style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;
+          letter-spacing:.8px;margin-bottom:6px">Selecione uma ou mais áreas:</div>
+        <label style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;font-size:12px;color:var(--text);font-weight:normal;text-transform:none;letter-spacing:0">
+          <input type="checkbox" value="__all__" id="ac-lista-all" onchange="areaAllToggle('lista')" checked style="width:14px;height:14px;accent-color:var(--sz-aml)"> Todas
+        </label>
+        <hr style="border-color:var(--bdr);margin:4px 0">
+        <label style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;font-size:12px;color:var(--text);font-weight:normal;text-transform:none;letter-spacing:0"><input type="checkbox" class="ac-lista" value="Extração Cavacos" onchange="areaChk('lista')" style="width:14px;height:14px;accent-color:var(--sz-aml)"> Extração Cavacos</label>
+        <label style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;font-size:12px;color:var(--text);font-weight:normal;text-transform:none;letter-spacing:0"><input type="checkbox" class="ac-lista" value="Cozimento" onchange="areaChk('lista')" style="width:14px;height:14px;accent-color:var(--sz-aml)"> Cozimento</label>
+        <label style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;font-size:12px;color:var(--text);font-weight:normal;text-transform:none;letter-spacing:0"><input type="checkbox" class="ac-lista" value="Pré Branqueamento" onchange="areaChk('lista')" style="width:14px;height:14px;accent-color:var(--sz-aml)"> Pré Branqueamento</label>
+        <label style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;font-size:12px;color:var(--text);font-weight:normal;text-transform:none;letter-spacing:0"><input type="checkbox" class="ac-lista" value="Depuração" onchange="areaChk('lista')" style="width:14px;height:14px;accent-color:var(--sz-aml)"> Depuração</label>
+        <label style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;font-size:12px;color:var(--text);font-weight:normal;text-transform:none;letter-spacing:0"><input type="checkbox" class="ac-lista" value="Branqueamento" onchange="areaChk('lista')" style="width:14px;height:14px;accent-color:var(--sz-aml)"> Branqueamento</label>
+        <label style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;font-size:12px;color:var(--text);font-weight:normal;text-transform:none;letter-spacing:0"><input type="checkbox" class="ac-lista" value="Laje DDW" onchange="areaChk('lista')" style="width:14px;height:14px;accent-color:var(--sz-aml)"> Laje DDW</label>
+        <hr style="border-color:var(--bdr);margin:4px 0">
+        <button class="btn bs bsm" style="width:100%;margin-top:2px" onclick="toggleAreaDrop('lista')">✔ Fechar</button>
+      </div>
+    </div>
     <select id="fblq" onchange="rLista()">
       <option value="">Com e sem bloqueio</option>
       <option value="com">Com cartão de bloqueio</option>
@@ -416,14 +433,33 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
   <div class="st">
     <span id="rtitle">Relatório de LTs — Pendentes &amp; Em Execução</span>
     <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">
-      <select id="frarea" onchange="rRel()" style="font-size:11px;padding:4px 8px;min-width:160px">
-        <option value="">Todas as áreas</option>
-        <option value="Extração Cavacos">Extração Cavacos</option>
-        <option value="Cozimento">Cozimento</option>
-        <option value="Pré Branqueamento">Pré Branqueamento</option>
-        <option value="Depuração">Depuração</option>
-        <option value="Branqueamento">Branqueamento</option>
-          <option value="Laje DDW">Laje DDW</option>
+      <div style="position:relative">
+        <button onclick="toggleAreaDrop('rel')"
+          style="background:var(--bg);border:1px solid var(--bdr);border-radius:4px;
+          color:var(--text);font-family:var(--fb);font-size:12px;padding:5px 9px;text-align:left;
+          cursor:pointer;min-width:155px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="area-btn-rel">
+          Todas as áreas ▾
+        </button>
+        <div id="area-drop-rel" style="display:none;position:absolute;top:100%;left:0;z-index:300;
+          background:var(--card);border:1px solid var(--sz-aml);border-radius:5px;padding:8px;
+          min-width:200px;box-shadow:0 4px 20px rgba(0,0,0,.5)">
+          <div style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px">Selecione uma ou mais áreas:</div>
+          <label style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;font-size:12px;color:var(--text);font-weight:normal;text-transform:none;letter-spacing:0"><input type="checkbox" value="__all__" id="ac-rel-all" onchange="areaAllToggle('rel')" checked style="width:14px;height:14px;accent-color:var(--sz-aml)"> Todas</label>
+          <hr style="border-color:var(--bdr);margin:4px 0">
+          <label style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;font-size:12px;color:var(--text);font-weight:normal;text-transform:none;letter-spacing:0"><input type="checkbox" class="ac-rel" value="Extração Cavacos" onchange="areaChk('rel')" style="width:14px;height:14px;accent-color:var(--sz-aml)"> Extração Cavacos</label>
+          <label style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;font-size:12px;color:var(--text);font-weight:normal;text-transform:none;letter-spacing:0"><input type="checkbox" class="ac-rel" value="Cozimento" onchange="areaChk('rel')" style="width:14px;height:14px;accent-color:var(--sz-aml)"> Cozimento</label>
+          <label style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;font-size:12px;color:var(--text);font-weight:normal;text-transform:none;letter-spacing:0"><input type="checkbox" class="ac-rel" value="Pré Branqueamento" onchange="areaChk('rel')" style="width:14px;height:14px;accent-color:var(--sz-aml)"> Pré Branqueamento</label>
+          <label style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;font-size:12px;color:var(--text);font-weight:normal;text-transform:none;letter-spacing:0"><input type="checkbox" class="ac-rel" value="Depuração" onchange="areaChk('rel')" style="width:14px;height:14px;accent-color:var(--sz-aml)"> Depuração</label>
+          <label style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;font-size:12px;color:var(--text);font-weight:normal;text-transform:none;letter-spacing:0"><input type="checkbox" class="ac-rel" value="Branqueamento" onchange="areaChk('rel')" style="width:14px;height:14px;accent-color:var(--sz-aml)"> Branqueamento</label>
+          <label style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;font-size:12px;color:var(--text);font-weight:normal;text-transform:none;letter-spacing:0"><input type="checkbox" class="ac-rel" value="Laje DDW" onchange="areaChk('rel')" style="width:14px;height:14px;accent-color:var(--sz-aml)"> Laje DDW</label>
+          <hr style="border-color:var(--bdr);margin:4px 0">
+          <button class="btn bs bsm" style="width:100%;margin-top:2px" onclick="toggleAreaDrop('rel')">✔ Fechar</button>
+        </div>
+      </div>
+      <select id="frblq" onchange="rRel()" style="font-size:11px;padding:5px 8px;min-width:155px">
+        <option value="">Com e sem bloqueio</option>
+        <option value="com">Com cartão de bloqueio</option>
+        <option value="sem">Sem cartão de bloqueio</option>
       </select>
       <button class="btn bs bsm" id="rclr" onclick="clearRF()" style="display:none">✕ Todos</button>
       <button class="btn baz bsm" onclick="shareRelPDF()">📤 Compartilhar filtrado</button>
@@ -744,7 +780,54 @@ function kpiF(f){
   rLista();
 }
 
-// ═══ DUPLICATA ════════════════════════════════════════════════════
+// ═══ MULTI-ÁREA ════════════════════════════════════════════════════
+function toggleAreaDrop(ctx){
+  const drop=document.getElementById('area-drop-'+ctx);
+  if(!drop)return;
+  const isOpen=drop.style.display!=='none';
+  // Fechar todos
+  document.querySelectorAll('[id^="area-drop-"]').forEach(d=>d.style.display='none');
+  if(!isOpen)drop.style.display='block';
+}
+// Fechar dropdowns ao clicar fora
+document.addEventListener('click',function(e){
+  if(!e.target.closest('[id^="area-drop-"]')&&!e.target.closest('[id^="area-btn-"]')){
+    document.querySelectorAll('[id^="area-drop-"]').forEach(d=>d.style.display='none');
+  }
+});
+function areaAllToggle(ctx){
+  const all=document.getElementById('ac-'+ctx+'-all');
+  document.querySelectorAll('.ac-'+ctx).forEach(c=>c.checked=false);
+  if(!all.checked)all.checked=true;
+  updateAreaBtn(ctx);
+  ctx==='lista'?rLista():rRel();
+}
+function areaChk(ctx){
+  const checks=[...document.querySelectorAll('.ac-'+ctx)];
+  const anyChecked=checks.some(c=>c.checked);
+  document.getElementById('ac-'+ctx+'-all').checked=!anyChecked;
+  updateAreaBtn(ctx);
+  ctx==='lista'?rLista():rRel();
+}
+function updateAreaBtn(ctx){
+  const checks=[...document.querySelectorAll('.ac-'+ctx)].filter(c=>c.checked);
+  const btn=document.getElementById('area-btn-'+ctx);
+  if(!btn)return;
+  if(!checks.length)btn.textContent='Todas as áreas ▾';
+  else if(checks.length===1)btn.textContent=checks[0].value+' ▾';
+  else btn.textContent=checks.length+' áreas selecionadas ▾';
+}
+function getAreaFilt(ctx){
+  const checks=[...document.querySelectorAll('.ac-'+ctx)].filter(c=>c.checked).map(c=>c.value);
+  return checks; // array vazio = todas
+}
+function resetAreaFilt(ctx){
+  document.querySelectorAll('.ac-'+ctx).forEach(c=>c.checked=false);
+  const all=document.getElementById('ac-'+ctx+'-all');if(all)all.checked=true;
+  updateAreaBtn(ctx);
+}
+
+
 function checkDupLT(){
   if(editId)return; // em modo edição não verifica
   const val=document.getElementById('fnum').value.trim().toUpperCase();
@@ -907,22 +990,28 @@ function getFilt(){
   const prio=document.getElementById('fpri')?.value||'';
   const eq=(document.getElementById('feq')?.value||'').toLowerCase();
   const blq=document.getElementById('fblq')?.value||'';
-  const area=document.getElementById('farea2')?.value||'';
+  const areas=getAreaFilt('lista');
   return LTS.filter(l=>{
-    if(disc&&l.disc!==disc)return false;if(sts&&l.status!==sts)return false;
-    if(prio&&l.prio!==prio)return false;if(eq&&!(l.equip||'').toLowerCase().includes(eq))return false;
-    if(blq==='com'&&!l.cartao)return false;if(blq==='sem'&&l.cartao)return false;
-    if(area&&l.area!==area)return false;
+    if(disc&&l.disc!==disc)return false;
+    if(sts&&l.status!==sts)return false;
+    if(prio&&l.prio!==prio)return false;
+    if(eq&&!(l.equip||'').toLowerCase().includes(eq))return false;
+    if(blq==='com'&&!l.cartao)return false;
+    if(blq==='sem'&&l.cartao)return false;
+    if(areas.length&&!areas.includes(l.area||''))return false;
     if(txt){const h=(l.num+l.os+l.cartao+l.cadeado+l.equip+l.empresa+l.lider+l.desc+(l.area||'')).toLowerCase();if(!h.includes(txt))return false;}
     return true;
   });
 }
 function clearF(){
-  ['ftxt','fdisc2','fsts','fpri','feq','fblq','farea2'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});rLista();
+  ['ftxt','fdisc2','fsts','fpri','feq','fblq'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  resetAreaFilt('lista');
+  rLista();
 }
 function filtDisc(disc){
   document.getElementById('fdisc2').value=disc;
-  ['ftxt','fsts','fpri','feq','fblq','farea2'].forEach(id=>document.getElementById(id).value='');
+  ['ftxt','fsts','fpri','feq','fblq'].forEach(id=>document.getElementById(id).value='');
+  resetAreaFilt('lista');
   document.querySelectorAll('.tb').forEach(b=>b.classList.remove('on'));
   document.querySelectorAll('.tb')[2].classList.add('on');
   document.querySelectorAll('.tp').forEach(p=>p.classList.remove('on'));
@@ -988,16 +1077,18 @@ function rRel(){
             <div class="brn" style="color:${r.c}">${r.v}</div></div>`).join('')}
       </div></div>`;}).join('');
   let rows;const clr=document.getElementById('rclr');const tit=document.getElementById('rtitle');
-  const rareaEl=document.getElementById('frarea');
-  const rareaVal=rareaEl?rareaEl.value:'';
+  const areas=getAreaFilt('rel');
+  const rblqVal=document.getElementById('frblq')?.value||'';
   const sortPrio=(a,b)=>{const o={Crítica:0,Alta:1,Normal:2};return(o[a.prio]??2)-(o[b.prio]??2);};
-  const areaFilt=r=>!rareaVal||(r.area===rareaVal);
+  const areaFilt=r=>!areas.length||areas.includes(r.area||'');
+  const blqFilt=r=>{if(rblqVal==='com')return!!r.cartao;if(rblqVal==='sem')return!r.cartao;return true;};
+  const areaLabel=areas.length===0?'':(areas.length===1?' · '+areas[0]:' · '+areas.length+' áreas');
   if(relF){
-    rows=LTS.filter(l=>l.status===relF&&areaFilt(l)).sort(sortPrio);
-    tit.textContent=`Relatório de LTs — ${stl(relF)}${rareaVal?' · '+rareaVal:''} (${rows.length})`;clr.style.display='inline-flex';
+    rows=LTS.filter(l=>l.status===relF&&areaFilt(l)&&blqFilt(l)).sort(sortPrio);
+    tit.textContent=`Relatório de LTs — ${stl(relF)}${areaLabel} (${rows.length})`;clr.style.display='inline-flex';
   } else {
-    rows=LTS.filter(l=>(l.status==='P'||l.status==='E')&&areaFilt(l)).sort(sortPrio);
-    tit.textContent='Relatório de LTs — Pendentes & Em Execução'+(rareaVal?' · '+rareaVal:'');clr.style.display='none';
+    rows=LTS.filter(l=>(l.status==='P'||l.status==='E')&&areaFilt(l)&&blqFilt(l)).sort(sortPrio);
+    tit.textContent='Relatório de LTs — Pendentes & Em Execução'+areaLabel;clr.style.display=areas.length||rblqVal?'inline-flex':'none';
   }
   const tb=document.getElementById('rtb');
   if(!rows.length){tb.innerHTML=`<tr><td colspan="13" style="text-align:center;padding:22px;color:var(--muted)">Nenhuma LT neste filtro.</td></tr>`;return;}
@@ -1016,7 +1107,12 @@ function rRel(){
     <td class="sc" style="font-size:11px;max-width:120px">${l.desc||'—'}</td>
   </tr>`;}).join('');
 }
-function clearRF(){relF=null;const e=document.getElementById('frarea');if(e)e.value='';rRel();}
+function clearRF(){
+  relF=null;
+  resetAreaFilt('rel');
+  const fb=document.getElementById('frblq');if(fb)fb.value='';
+  rRel();
+}
 
 // ═══ CRONOGRAMA ════════════════════════════════════════════════════
 // ═══ CRONOGRAMAS MÚLTIPLOS ═══════════════════════════════════════
