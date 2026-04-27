@@ -210,6 +210,13 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
 .cmg{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:9px}
 .cprev{font-size:11px;color:var(--muted);white-space:pre-wrap;background:var(--card);
   border:1px solid var(--bdr);border-radius:4px;padding:7px 10px;margin-bottom:12px}
+.crono-tab{padding:7px 14px;background:var(--card);border:1px solid var(--bdr);border-radius:5px;
+  font-family:var(--fh);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
+  color:var(--muted);cursor:pointer;transition:all .2s;white-space:nowrap}
+.crono-tab:hover{border-color:var(--sz-aml);color:var(--text)}
+.crono-tab.on{background:var(--sz-inov);border-color:var(--sz-inov);color:#fff}
+.crono-tab.alarm{border-color:var(--sz-brd);color:var(--sz-brd)}
+.crono-tab.on.alarm{background:var(--sz-brd);border-color:var(--sz-brd)}
 /* PASSOS */
 .pi{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:4px;
   border:1px solid var(--bdr);margin-bottom:5px;background:var(--card2)}
@@ -430,21 +437,40 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
 
 <!-- CRONOGRAMA -->
 <div id="tab-crono" class="tp">
+
+  <!-- Abas dos cronogramas -->
+  <div id="crono-tabs-bar" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:14px">
+    <div id="crono-tabs" style="display:flex;gap:4px;flex-wrap:wrap;flex:1"></div>
+    <button class="btn bp bsm" onclick="novoCrono()">+ Novo Cronograma</button>
+  </div>
+
+  <!-- Zona de importação (por cronograma) -->
   <div id="ciz" class="ciz" ondragover="this.classList.add('drag');event.preventDefault()"
        ondragleave="this.classList.remove('drag')" ondrop="dropXLSX(event)">
-    <input type="file" accept=".xlsx,.xls" onchange="pickXLSX(event)">
+    <input type="file" accept=".xlsx,.xls,.pdf" onchange="pickFile(event)">
     <div style="font-size:34px;margin-bottom:7px">📂</div>
-    <div class="cit">Importar Cronograma Excel</div>
-    <div class="cis">Arraste o <strong>.xlsx</strong> aqui ou clique para selecionar<br>
-      Formato Suzano: ORDEM · TAG · Nome da tarefa · Início · Término · EMPRESA</div>
+    <div class="cit">Importar Cronograma</div>
+    <div class="cis">
+      Arraste o arquivo aqui ou clique para selecionar<br>
+      <strong>.xlsx / .xls</strong> — Excel Suzano (ORDEM · TAG · Nome da tarefa · Início · Término · EMPRESA)<br>
+      <strong>.pdf</strong> — PDF com tabela de cronograma
+    </div>
   </div>
+
   <div id="cmeta" style="display:none" class="cm2">
-    <div style="font-size:12px">📅 <strong id="ccount" style="color:var(--sz-aml)">0</strong> tarefas &nbsp;|&nbsp;
-      <span id="cfname" style="color:var(--muted)"></span></div>
-    <button class="btn bs bsm" onclick="clearCrono()">🗑 Limpar cronograma</button>
+    <div style="font-size:12px">
+      📅 <strong id="ccount" style="color:var(--sz-aml)">0</strong> tarefas &nbsp;|&nbsp;
+      <span id="cfname" style="color:var(--muted)"></span> &nbsp;|&nbsp;
+      <span id="ccrono-name" style="color:var(--text);font-weight:700"></span>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="btn bs bsm" onclick="renameCrono()">✏️ Renomear</button>
+      <button class="btn bd2 bsm" onclick="clearCrono()">🗑 Remover</button>
+    </div>
   </div>
+
   <div id="colmap" style="display:none" class="colmap">
-    <div class="cmt">⚙️ Mapeamento de Colunas — Formato Suzano detectado automaticamente</div>
+    <div class="cmt">⚙️ Mapeamento de Colunas — detectado automaticamente</div>
     <div class="cmg">
       <div class="fi"><label>Nome da Tarefa</label><select id="cmnome"></select></div>
       <div class="fi"><label>Início</label><select id="cmini"></select></div>
@@ -458,8 +484,10 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
     </div>
     <div class="fa"><button class="btn bp" onclick="applyMap()">✔ Aplicar e Importar</button></div>
   </div>
+
   <div id="cprev" class="cprev" style="display:none"></div>
   <div id="capanel"></div>
+
   <div id="ctable" style="display:none">
     <div class="flt">
       <input id="cflt" placeholder="Buscar tarefa, OS, TAG..." oninput="rCrono()" style="flex:2">
@@ -479,8 +507,9 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
     <div style="font-size:10px;color:var(--muted);margin-bottom:7px" id="ccline"></div>
     <div class="tw"><table><thead><tr>
       <th>#</th><th>Nome da Tarefa</th><th>TAG</th><th>OS Ref.</th>
-      <th>C.Trab</th><th>Empresa</th><th>Responsável</th><th>Início Plan.</th><th>Término Plan.</th>
-      <th>LT Vinculada</th><th>Passos</th><th>Situação</th>
+      <th>C.Trab</th><th>Empresa</th><th>Responsável</th>
+      <th>Início Plan.</th><th>Término Plan.</th>
+      <th>LTs Vinculadas</th><th>Situação</th>
     </tr></thead><tbody id="ctb"></tbody></table></div>
   </div>
 </div>
@@ -990,14 +1019,156 @@ function rRel(){
 function clearRF(){relF=null;const e=document.getElementById('frarea');if(e)e.value='';rRel();}
 
 // ═══ CRONOGRAMA ════════════════════════════════════════════════════
-function dropXLSX(e){e.preventDefault();document.getElementById('ciz').classList.remove('drag');const f=e.dataTransfer.files[0];if(f)procXLSX(f);}
-function pickXLSX(e){const f=e.target.files[0];if(f)procXLSX(f);e.target.value='';}
+// ═══ CRONOGRAMAS MÚLTIPLOS ═══════════════════════════════════════
+let CRONOS_LIST=JSON.parse(localStorage.getItem('clist5')||'[]');
+let CRONO_IDX=0;
+function svcList(){localStorage.setItem('clist5',JSON.stringify(CRONOS_LIST));}
+// Migrar legado
+(function(){
+  const old=localStorage.getItem('cro5');
+  if(old&&!CRONOS_LIST.length){
+    try{const arr=JSON.parse(old);if(arr.length){CRONOS_LIST=[{id:'leg_1',nome:'Cronograma 1',tarefas:arr,meta:{filename:'importado'}}];svcList();localStorage.removeItem('cro5');}}catch(e){}
+  }
+})();
+function getCrono(){return CRONOS_LIST[CRONO_IDX]||null;}
+function getCronoTarefas(){return getCrono()?.tarefas||[];}
+Object.defineProperty(window,'CRONOS',{get:()=>getCronoTarefas(),set:v=>{if(getCrono())getCrono().tarefas=v;}});
+Object.defineProperty(window,'CMETA',{get:()=>getCrono()?.meta||null,set:v=>{if(getCrono())getCrono().meta=v;}});
+
+function novoCrono(){
+  const nome=prompt('Nome do novo cronograma:','Cronograma '+(CRONOS_LIST.length+1));
+  if(!nome)return;
+  CRONOS_LIST.push({id:'c_'+Date.now(),nome,tarefas:[],meta:null});
+  CRONO_IDX=CRONOS_LIST.length-1;
+  svcList();rCronoTabs();showCMeta();rCrono();
+}
+function renameCrono(){
+  const c=getCrono();if(!c)return;
+  const nome=prompt('Novo nome:',c.nome);if(!nome)return;
+  c.nome=nome;svcList();rCronoTabs();
+  document.getElementById('ccrono-name').textContent=nome;
+}
+function switchCrono(idx){
+  CRONO_IDX=idx;clearCF();
+  document.getElementById('colmap').style.display='none';
+  document.getElementById('cprev').style.display='none';
+  rCronoTabs();showCMeta();rCrono();
+}
+function rCronoTabs(){
+  const bar=document.getElementById('crono-tabs');if(!bar)return;
+  if(!CRONOS_LIST.length){bar.innerHTML='';return;}
+  bar.innerHTML=CRONOS_LIST.map((c,i)=>{
+    const hasA=c.tarefas.some(t=>csitT(t).code==='alarm');
+    return`<button class="crono-tab ${i===CRONO_IDX?'on':''} ${hasA&&i!==CRONO_IDX?'alarm':''}" onclick="switchCrono(${i})">${c.nome}${hasA?' 🔴':''}</button>`;
+  }).join('');
+}
+function ltsForC(c){
+  if(!c.os)return[];
+  return LTS.filter(l=>l.os&&l.os.trim().toUpperCase()===c.os.trim().toUpperCase());
+}
+function ltForC(c){return ltsForC(c)[0]||null;}
+function csitT(c){
+  const now=new Date();
+  const st=c.inicio&&new Date(c.inicio)<now;
+  const en=c.fim&&new Date(c.fim)<now;
+  const lks=ltsForC(c);
+  if(!st)return{code:'wait',lbl:'⏳ Aguardando'};
+  if(!lks.length)return en?{code:'alarm',lbl:'🔴 Sem LT — prazo esgotado'}:{code:'alarm',lbl:'🔴 Sem LT liberada'};
+  const todos=lks.every(l=>l.status==='C');
+  const algumExec=lks.some(l=>l.status==='E');
+  const algumCanc=lks.every(l=>l.status==='X');
+  if(todos)return{code:'ok',lbl:'✅ Concluído'};
+  if(algumCanc)return{code:'ok',lbl:'⚫ Cancelado'};
+  if(algumExec)return en?{code:'alarm',lbl:'🔴 Em exec. — prazo esgotado'}:{code:'exec',lbl:'🔵 Em Execução'};
+  return en?{code:'alarm',lbl:'🔴 LT pend. — prazo esgotado'}:{code:'pend',lbl:'🟠 LT Pendente'};
+}
+function csit(c){return csitT(c);}
+function showCMeta(){
+  const c=getCrono();const has=c&&c.tarefas.length>0;
+  document.getElementById('cmeta').style.display=has?'flex':'none';
+  document.getElementById('ciz').style.display=(!CRONOS_LIST.length||(!has&&c))?'block':'none';
+  document.getElementById('ctable').style.display=has?'block':'none';
+  if(has){
+    document.getElementById('ccount').textContent=c.tarefas.length;
+    document.getElementById('cfname').textContent=c.meta?.filename||'—';
+    document.getElementById('ccrono-name').textContent=c.nome;
+  }
+  rCronoTabs();
+}
+function clearCrono(){
+  if(!confirm('Remover este cronograma?'))return;
+  CRONOS_LIST.splice(CRONO_IDX,1);CRONO_IDX=Math.max(0,CRONO_IDX-1);
+  svcList();document.getElementById('capanel').innerHTML='';
+  updAlarms();showCMeta();rCrono();toast('🗑️ Cronograma removido.');
+}
+function clearCF(){['cflt','cftag','cfdi','cfdf','cfsit'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});rCrono();}
+function rCrono(){
+  showCMeta();const tarefas=getCronoTarefas();if(!tarefas.length)return;
+  const alms=tarefas.filter(c=>csitT(c).code==='alarm');
+  const ap=document.getElementById('capanel');
+  if(alms.length){
+    ap.innerHTML=`<div class="ap" style="margin-bottom:14px"><div class="apt">🚨 ${alms.length} tarefa${alms.length>1?'s':''} sem LT ou prazo esgotado</div>
+      ${alms.slice(0,6).map(c=>`<div class="ai"><div style="font-size:13px">🔴</div>
+        <div style="flex:1;min-width:160px"><div class="alt">${c.os||'—'} — ${c.desc.substring(0,45)}</div>
+        <div class="adc">Início: ${fdt(c.inicio)} | Término: ${fdt(c.fim)}</div></div>
+        <span class="atg ar">${csitT(c).lbl.replace(/^[^\s]+\s/,'')}</span></div>`).join('')}
+      ${alms.length>6?`<div style="font-size:10px;color:var(--muted);text-align:center;margin-top:3px">...e mais ${alms.length-6}</div>`:''}
+    </div>`;
+  } else ap.innerHTML='';
+  const txt=(document.getElementById('cflt')?.value||'').toLowerCase();
+  const tagF=(document.getElementById('cftag')?.value||'').toLowerCase();
+  const dIni=document.getElementById('cfdi')?.value||'';
+  const dFim=document.getElementById('cfdf')?.value||'';
+  const sitF=document.getElementById('cfsit')?.value||'';
+  const filt=tarefas.filter(c=>{
+    if(txt&&!c.desc.toLowerCase().includes(txt)&&!(c.os||'').toLowerCase().includes(txt)&&!(c.tag||'').toLowerCase().includes(txt))return false;
+    if(tagF&&!(c.tag||'').toLowerCase().includes(tagF))return false;
+    if(dIni&&c.inicio&&c.inicio.slice(0,10)<dIni)return false;
+    if(dFim&&c.inicio&&c.inicio.slice(0,10)>dFim)return false;
+    if(sitF&&csitT(c).code!==sitF)return false;
+    return true;
+  });
+  document.getElementById('ccline').textContent=`${filt.length} de ${tarefas.length} tarefas`;
+  const tb=document.getElementById('ctb');
+  if(!filt.length){tb.innerHTML=`<tr><td colspan="11"><div class="es"><div class="ei">📅</div><p>Nenhuma tarefa.</p></div></td></tr>`;return;}
+  tb.innerHTML=filt.map((c,i)=>{
+    const lks=ltsForC(c);const s=csitT(c);
+    const ltsCell=lks.length?lks.map(l=>`<span class="ln" style="font-size:11px;display:inline-block;margin-right:3px">${l.num}</span><span class="sp sp-${l.status}" style="font-size:9px">${stl(l.status)}</span>`).join('<br>')
+      :'<span style="color:var(--faint);font-size:11px">—</span>';
+    const sc=s.code==='alarm'?'var(--sz-brd)':s.code==='ok'?'var(--sz-verde)':s.code==='exec'?'var(--sz-inov)':s.code==='pend'?'var(--sz-lrj)':'var(--muted)';
+    return`<tr class="${s.code==='alarm'?'ra':''}">
+      <td class="sc">${i+1}</td>
+      <td class="hi" style="max-width:180px;font-size:12px" title="${c.desc}">${c.desc.substring(0,48)}${c.desc.length>48?'…':''}</td>
+      <td class="sc" style="font-size:11px">${c.tag||'—'}</td>
+      <td class="ln" style="font-size:12px">${c.os||'—'}</td>
+      <td class="sc" style="font-size:11px">${c.ctrab||'—'}</td>
+      <td class="sc" style="font-size:11px">${c.empresa||'—'}</td>
+      <td class="sc" style="font-size:11px">${c.resp||c.facilitador||'—'}</td>
+      <td class="sc" style="font-size:11px">${fdt(c.inicio)}</td>
+      <td style="font-size:11px;color:${s.code==='alarm'?'var(--sz-brd)':'var(--muted)'}">${fdt(c.fim)}</td>
+      <td style="min-width:110px">${ltsCell}</td>
+      <td style="font-size:11px;white-space:nowrap;color:${sc}">${s.lbl}</td>
+    </tr>`;}).join('');
+}
+function dropXLSX(e){e.preventDefault();document.getElementById('ciz').classList.remove('drag');const f=e.dataTransfer.files[0];if(f)procFile(f);}
+function pickFile(e){const f=e.target.files[0];if(f)procFile(f);e.target.value='';}
+function pickXLSX(e){pickFile(e);}
+function procFile(file){
+  if(file.name.match(/\.xlsx?$/i))procXLSX(file);
+  else if(file.name.match(/\.pdf$/i))procPDF(file);
+  else toast('⚠️ Use .xlsx, .xls ou .pdf','err');
+}
+function ensureCrono(){
+  if(!getCrono()){
+    const nome=prompt('Nome deste cronograma:','Cronograma '+(CRONOS_LIST.length+1))||('Cronograma '+(CRONOS_LIST.length+1));
+    CRONOS_LIST.push({id:'c_'+Date.now(),nome,tarefas:[],meta:null});
+    CRONO_IDX=CRONOS_LIST.length-1;
+  }
+}
 function procXLSX(file){
-  if(!file.name.match(/\.xlsx?$/i)){toast('⚠️ Selecione .xlsx ou .xls','err');return;}
-  if(typeof XLSX==='undefined'){toast('⚠️ Biblioteca XLSX não carregada. Abra no Chrome.','err');return;}
-  toast('⏳ Lendo arquivo...');
-  const r=new FileReader();
-  r.onerror=()=>toast('⚠️ Erro ao ler arquivo.','err');
+  if(typeof XLSX==='undefined'){toast('⚠️ Abra no Chrome para usar Excel','err');return;}
+  ensureCrono();toast('⏳ Lendo Excel...');
+  const r=new FileReader();r.onerror=()=>toast('⚠️ Erro ao ler arquivo.','err');
   r.onload=function(ev){
     try{
       const wb=XLSX.read(new Uint8Array(ev.target.result),{type:'array',raw:true});
@@ -1015,11 +1186,11 @@ function procXLSX(file){
       function fc(kws){for(const k of kws){const f2=shHdr.find(h=>h.l.toLowerCase().includes(k.toLowerCase()));if(f2)return f2.i.toString();}return'';}
       const am={nome:fc(['nome da tarefa','tarefa','task']),inicio:fc(['início','inicio','start']),
         fim:fc(['término','termino','fim','finish']),os:fc(['ordem','os ref']),emp:fc(['empresa','company']),
-        tag:fc(['tag']),ctrab:fc(['centro trab','centro de trab','centro trabalho','ctrab']),
-        resp:fc(['supervisor','responsável','responsavel']),fac:fc(['facilitador','facilitator'])};
+        tag:fc(['tag']),ctrab:fc(['centro trab','centro de trab','ctrab']),
+        resp:fc(['supervisor','responsável','responsavel']),fac:fc(['facilitador'])};
       const opts=shHdr.map(h=>`<option value="${h.i}">${h.l}</option>`).join('');
       const nn='<option value="">— Não usar —</option>';
-      ['cmnome','cmini','cmfim','cmos','cmemp','cmtag','cmctrab','cmresp','cmfac'].forEach(id=>{const e=document.getElementById(id);e.innerHTML=nn+opts;});
+      ['cmnome','cmini','cmfim','cmos','cmemp','cmtag','cmctrab','cmresp','cmfac'].forEach(id=>{document.getElementById(id).innerHTML=nn+opts;});
       document.getElementById('cmnome').value=am.nome;document.getElementById('cmini').value=am.inicio;
       document.getElementById('cmfim').value=am.fim;document.getElementById('cmos').value=am.os;
       document.getElementById('cmemp').value=am.emp;document.getElementById('cmtag').value=am.tag;
@@ -1027,11 +1198,45 @@ function procXLSX(file){
       document.getElementById('cmfac').value=am.fac;
       const ni=am.nome!==''?parseInt(am.nome):-1;const ii=am.inicio!==''?parseInt(am.inicio):-1;
       const prev=rawSheet.slice(0,4).map(r2=>[ni>=0?r2[ni]:'',ii>=0?r2[ii]:''].filter(Boolean).join(' | ')).filter(Boolean).join('\n');
-      const pe=document.getElementById('cprev');pe.textContent=`✔ ${rawSheet.length} linhas | ${shHdr.length} colunas\nPrévia:\n${prev}`;pe.style.display='block';
+      const pe=document.getElementById('cprev');pe.textContent=`✔ ${rawSheet.length} linhas\nPrévia:\n${prev}`;pe.style.display='block';
       document.getElementById('colmap').style.display='block';document.getElementById('ciz').style.display='none';
-      CMETA={filename:file.name,imported:new Date().toISOString()};
+      getCrono().meta={filename:file.name,imported:new Date().toISOString()};
       toast(`✔ ${rawSheet.length} linhas lidas`);
     }catch(err){console.error(err);toast('⚠️ Erro: '+err.message,'err');}
+  };r.readAsArrayBuffer(file);
+}
+function procPDF(file){
+  ensureCrono();toast('⏳ Lendo PDF...');
+  const r=new FileReader();
+  r.onload=async function(ev){
+    try{
+      if(!window.pdfjsLib){
+        const s=document.createElement('script');
+        s.src='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+        document.head.appendChild(s);await new Promise(res=>s.onload=res);
+        window.pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      }
+      const pdf=await window.pdfjsLib.getDocument({data:new Uint8Array(ev.target.result)}).promise;
+      let allText='';
+      for(let p=1;p<=pdf.numPages;p++){const page=await pdf.getPage(p);const tc=await page.getTextContent();allText+=tc.items.map(i=>i.str).join(' ')+'\n';}
+      const lines=allText.split('\n').map(l=>l.trim()).filter(l=>l.length>3);
+      const dateReg=/\d{1,2}\/\d{1,2}\/\d{2,4}/;
+      const taskLines=lines.filter(l=>dateReg.test(l));
+      if(!taskLines.length){
+        const pe=document.getElementById('cprev');
+        pe.textContent=`⚠️ PDF sem tabela detectável.\nTexto extraído:\n${lines.slice(0,8).join('\n')}`;
+        pe.style.display='block';toast('⚠️ PDF sem tabela — tente Excel','err');return;
+      }
+      function pd2(val){if(!val)return null;const m=val.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:\s+(\d{1,2}):(\d{2}))?/);if(!m)return null;const[,d,mo,y,h='0',mi='0']=m;const yr=y.length===2?'20'+y:y;try{return new Date(`${yr}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}T${h.padStart(2,'0')}:${mi.padStart(2,'0')}:00`).toISOString();}catch{return null;}}
+      const tarefas=taskLines.map((line,i)=>{
+        const dates=line.match(/\d{1,2}\/\d{1,2}\/\d{2,4}(?:\s+\d{1,2}:\d{2})?/g)||[];
+        const desc=line.replace(/\d{1,2}\/\d{1,2}\/\d{2,4}(?:\s+\d{1,2}:\d{2})?/g,'').replace(/\s+/g,' ').trim()||('Tarefa '+(i+1));
+        return{id:'cp_'+(Date.now()+i),desc,inicio:pd2(dates[0]||''),fim:pd2(dates[1]||''),os:'',empresa:'',tag:'',ctrab:'',resp:''};
+      }).filter(t=>t.inicio||t.desc.length>4);
+      if(!tarefas.length){toast('⚠️ Nenhuma tarefa extraída','err');return;}
+      getCrono().tarefas=tarefas;getCrono().meta={filename:file.name,imported:new Date().toISOString()};
+      svcList();showCMeta();rCrono();updAlarms();toast(`✔ ${tarefas.length} tarefas do PDF`);
+    }catch(err){console.error(err);toast('⚠️ Erro PDF: '+err.message,'err');}
   };r.readAsArrayBuffer(file);
 }
 function applyMap(){
@@ -1042,123 +1247,19 @@ function applyMap(){
     cc=document.getElementById('cmctrab').value,cr=document.getElementById('cmresp').value,
     cfac=document.getElementById('cmfac').value;
   if(!cn||!ci){toast('⚠️ Defina Nome e Início.','err');return;}
-  function gv(row,col){return col!==''?((row[parseInt(col)]||'').toString().trim()):''}
-  function pd(val){
-    if(!val)return null;
-    let v=val.replace(/^(Dom|Seg|Ter|Qua|Qui|Sex|Sáb|Sab)\s+/i,'').trim();
-    const m=v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:\s+(\d{1,2}):(\d{2}))?/);
-    if(m){const[,d,mo,y,h='0',mi='0']=m;const yr=y.length===2?'20'+y:y;
-      return new Date(`${yr}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}T${h.padStart(2,'0')}:${mi.padStart(2,'0')}:00`).toISOString();}
-    const d2=new Date(v);if(!isNaN(d2))return d2.toISOString();return null;
-  }
-  CRONOS=rawSheet.map((row,i)=>{
-    const nome=gv(row,cn);if(!nome)return null;
+  function gv(row,col){return col!==''?((row[parseInt(col)]||'').toString().trim()):'';}
+  function pd(val){if(!val)return null;let v=val.replace(/^(Dom|Seg|Ter|Qua|Qui|Sex|Sáb|Sab)\s+/i,'').trim();const m=v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})(?:\s+(\d{1,2}):(\d{2}))?/);if(m){const[,d,mo,y,h='0',mi='0']=m;const yr=y.length===2?'20'+y:y;return new Date(`${yr}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}T${h.padStart(2,'0')}:${mi.padStart(2,'0')}:00`).toISOString();}const d2=new Date(v);if(!isNaN(d2))return d2.toISOString();return null;}
+  const novas=rawSheet.map((row,i)=>{const nome=gv(row,cn);if(!nome)return null;
     return{id:'c_'+(Date.now()+i),desc:nome,inicio:pd(gv(row,ci)),fim:pd(gv(row,cf)),
-      os:gv(row,co),empresa:gv(row,ce),tag:gv(row,ct),ctrab:gv(row,cc),
-      resp:gv(row,cr),facilitador:gv(row,cfac),passos:[]};
+      os:gv(row,co),empresa:gv(row,ce),tag:gv(row,ct),ctrab:gv(row,cc),resp:gv(row,cr),facilitador:gv(row,cfac)};
   }).filter(Boolean);
-  svc();
-  if(window._fbOk&&window._fbSaveCronos){
-    syncBar(true);
-    window._fbSaveCronos(CRONOS).then(()=>syncBar(false)).catch(e=>{syncBar(false);console.error(e);});
-  }
-  rawSheet=null;
+  getCrono().tarefas=novas;svcList();rawSheet=null;
   document.getElementById('colmap').style.display='none';
   document.getElementById('ciz').style.display='none';
   document.getElementById('cprev').style.display='none';
-  showCMeta();rCrono();updAlarms();toast(`✔ ${CRONOS.length} tarefas importadas!`);
-}
-function showCMeta(){
-  const has=CRONOS.length>0;
-  document.getElementById('cmeta').style.display=has?'flex':'none';
-  document.getElementById('ciz').style.display=has?'none':'block';
-  document.getElementById('ctable').style.display=has?'block':'none';
-  if(has){document.getElementById('ccount').textContent=CRONOS.length;document.getElementById('cfname').textContent=CMETA?.filename||'—';}
-}
-function clearCrono(){if(!confirm('Remover cronograma?'))return;CRONOS=[];CMETA=null;svc();showCMeta();document.getElementById('capanel').innerHTML='';updAlarms();toast('🗑️ Cronograma removido.');}
-function clearCF(){['cflt','cftag','cfdi','cfdf','cfsit'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});rCrono();}
-function rCrono(){
-  showCMeta();if(!CRONOS.length)return;
-  const alms=CRONOS.filter(c=>csit(c).code==='alarm');
-  const ap=document.getElementById('capanel');
-  if(alms.length){
-    ap.innerHTML=`<div class="ap" style="margin-bottom:14px"><div class="apt">🚨 ${alms.length} tarefa${alms.length>1?'s':''} sem LT ou prazo esgotado</div>
-      ${alms.slice(0,6).map(c=>`<div class="ai"><div style="font-size:13px">🔴</div>
-        <div style="flex:1;min-width:160px"><div class="alt">${c.os||'—'} — ${c.desc.substring(0,45)}</div>
-        <div class="adc">Início: ${fdt(c.inicio)} | Término: ${fdt(c.fim)}</div></div>
-        <span class="atg ar">${csit(c).lbl.replace(/^[^\s]+\s/,'')}</span></div>`).join('')}
-      ${alms.length>6?`<div style="font-size:10px;color:var(--muted);text-align:center;margin-top:3px">...e mais ${alms.length-6}</div>`:''}
-    </div>`;
-  } else ap.innerHTML='';
-  const txt=(document.getElementById('cflt')?.value||'').toLowerCase();
-  const tagF=(document.getElementById('cftag')?.value||'').toLowerCase();
-  const dIni=document.getElementById('cfdi')?.value||'';
-  const dFim=document.getElementById('cfdf')?.value||'';
-  const sitF=document.getElementById('cfsit')?.value||'';
-  const filt=CRONOS.filter(c=>{
-    if(txt&&!c.desc.toLowerCase().includes(txt)&&!(c.os||'').toLowerCase().includes(txt)&&!(c.tag||'').toLowerCase().includes(txt))return false;
-    if(tagF&&!(c.tag||'').toLowerCase().includes(tagF))return false;
-    if(dIni&&c.inicio&&c.inicio.slice(0,10)<dIni)return false;
-    if(dFim&&c.inicio&&c.inicio.slice(0,10)>dFim)return false;
-    if(sitF&&csit(c).code!==sitF)return false;
-    return true;
-  });
-  document.getElementById('ccline').textContent=`${filt.length} de ${CRONOS.length} tarefas`;
-  const tb=document.getElementById('ctb');
-  if(!filt.length){tb.innerHTML=`<tr><td colspan="10"><div class="es"><div class="ei">📅</div><p>Nenhuma tarefa.</p></div></td></tr>`;return;}
-  tb.innerHTML=filt.map((c,i)=>{
-    const lk=ltForC(c);const s=csit(c);
-    const ps=c.passos||[];const pc=ps.filter(p=>p.done).length;const pt=ps.length;
-    let pb='';
-    if(pt===0)pb=`<span class="pbb pbp" onclick="openPas('${c.id}')">+ Passos</span>`;
-    else if(pc===pt)pb=`<span class="pbb pbo" onclick="openPas('${c.id}')">✔ ${pc}/${pt}</span>`;
-    else pb=`<span class="pbb pbr" onclick="openPas('${c.id}')">${pc}/${pt}</span>`;
-    return`<tr class="${s.code==='alarm'?'ra':''}">
-      <td class="sc">${i+1}</td>
-      <td class="hi" style="max-width:180px;font-size:12px" title="${c.desc}">${c.desc.substring(0,48)}${c.desc.length>48?'…':''}</td>
-      <td class="sc" style="font-size:11px">${c.tag||'—'}</td>
-      <td class="ln" style="font-size:12px">${c.os||'—'}</td>
-      <td class="sc" style="font-size:11px">${c.ctrab||'—'}</td>
-      <td class="sc" style="font-size:11px">${c.empresa||'—'}</td>
-      <td class="sc" style="font-size:11px">${c.resp||c.facilitador||'—'}</td>
-      <td class="sc" style="font-size:11px">${fdt(c.inicio)}</td>
-      <td style="font-size:11px;color:${s.code==='alarm'?'var(--sz-brd)':'var(--muted)'}">${fdt(c.fim)}</td>
-      <td>${lk?`<span class="ln" style="font-size:12px">${lk.num}</span><br><span class="sp sp-${lk.status}" style="font-size:9px">${stl(lk.status)}</span>`:'<span style="color:var(--faint);font-size:11px">—</span>'}</td>
-      <td>${pb}</td>
-      <td style="font-size:11px;white-space:nowrap;${s.code==='alarm'?'color:var(--sz-brd)':s.code==='ok'?'color:var(--sz-verde)':s.code==='exec'?'color:var(--sz-inov)':s.code==='pend'?'color:var(--sz-lrj)':'color:var(--muted)'}">${s.lbl}</td>
-    </tr>`;}).join('');
+  showCMeta();rCrono();updAlarms();toast(`✔ ${novas.length} tarefas importadas!`);
 }
 
-// ═══ PASSOS ════════════════════════════════════════════════════════
-function openPas(cid){
-  const c=CRONOS.find(x=>x.id===cid);if(!c)return;mPasId=cid;
-  document.getElementById('ptitle').textContent='📋 '+c.desc.substring(0,38)+(c.desc.length>38?'…':'');
-  document.getElementById('posinfo').textContent=`OS: ${c.os||'—'} | ${c.resp||c.empresa||'—'} | ${fdd(c.inicio)} → ${fdd(c.fim)}`;
-  rPasList(c);document.getElementById('mpas').classList.add('on');
-}
-function rPasList(c){
-  const ps=c.passos||[];
-  if(!ps.length){document.getElementById('plist').innerHTML='<div style="font-size:12px;color:var(--muted);text-align:center;padding:10px">Nenhum passo. Adicione abaixo.</div>';return;}
-  document.getElementById('plist').innerHTML=ps.map((p,i)=>
-    `<div class="pi ${p.done?'dn2':''}">
-      <div class="pck ${p.done?'on':''}" onclick="togPas('${c.id}',${i})">${p.done?'✔':''}</div>
-      <span class="ptx">${p.txt}</span>
-      <button class="pdl" onclick="delPas('${c.id}',${i})" title="Remover">✕</button>
-    </div>`).join('');
-}
-function togPas(cid,idx){
-  const c=CRONOS.find(x=>x.id===cid);if(!c)return;
-  if(!c.passos)c.passos=[];c.passos[idx].done=!c.passos[idx].done;
-  svc();
-  if(window._fbOk&&window._fbSaveCronos){
-    window._fbSaveCronos(CRONOS).catch(e=>console.error(e));
-  }
-  rPasList(c);rCrono();
-}
-function delPas(cid,idx){
-  const c=CRONOS.find(x=>x.id===cid);if(!c||!c.passos)return;
-  c.passos.splice(idx,1);svc();rPasList(c);rCrono();
-}
 
 // ═══ PDF / SHARE ════════════════════════════════════════════════════
 function buildPDF(rows,title){
