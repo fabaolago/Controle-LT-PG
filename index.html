@@ -25,19 +25,50 @@ window._fbReady=false;
 try{
   firebase.initializeApp(_FB);
   const _db=firebase.database();
-  // Escuta LTs em tempo real
+
+  // ── Escuta LTs em tempo real ──────────────────────────────────
   _db.ref('lts').on('value',snap=>{
     const v=snap.val();
     window._LTS_FB=v?Object.entries(v).map(([k,r])=>({...r,_k:k})):[];
     if(window._fbReady){LTS=window._LTS_FB;render();updAlarms();}
   });
-  // Escuta cronogramas em tempo real
-  _db.ref('cronos').on('value',snap=>{
+
+  // ── Escuta CRONOS_LIST em tempo real ──────────────────────────
+  // Usa nó 'cronos_list' (separado do antigo 'cronos')
+  _db.ref('cronos_list').on('value',snap=>{
     const v=snap.val();
-    window._CRON_FB=v?Object.entries(v).map(([k,r])=>({...r,_k:k})):[];
-    if(window._fbReady){CRONOS=window._CRON_FB;render();}
+    if(v!==null){
+      // v é objeto {idx0:{...}, idx1:{...}} ou array serializado
+      let lista=[];
+      if(Array.isArray(v)){
+        lista=v;
+      } else {
+        // Firebase converte arrays em objetos com chaves numéricas
+        lista=Object.keys(v).sort((a,b)=>Number(a)-Number(b)).map(k=>v[k]);
+      }
+      // Restaurar tarefas que podem ter vindo como objeto
+      lista=lista.map(c=>({
+        ...c,
+        tarefas:Array.isArray(c.tarefas)?c.tarefas:
+          c.tarefas?Object.keys(c.tarefas).sort((a,b)=>Number(a)-Number(b)).map(k=>c.tarefas[k]):[]
+      }));
+      window._CRONOS_LIST_FB=lista;
+      if(window._fbReady){
+        CRONOS_LIST=lista;
+        // Manter índice dentro dos limites
+        if(CRONO_IDX>=CRONOS_LIST.length)CRONO_IDX=Math.max(0,CRONOS_LIST.length-1);
+        if(document.querySelector('#tab-crono.on')||document.querySelector('#tab-crono.tp.on')){
+          rCronoTabs();showCMeta();rCrono();
+        }
+        updAlarms();
+      }
+    } else {
+      window._CRONOS_LIST_FB=[];
+      if(window._fbReady){CRONOS_LIST=[];rCronoTabs();showCMeta();}
+    }
   });
-  // Funções de escrita
+
+  // ── Funções de escrita LTs ────────────────────────────────────
   window._fbSave=async function(lt){
     const d={...lt};delete d._k;
     if(lt._k){await _db.ref('lts/'+lt._k).update(d);}
@@ -46,10 +77,23 @@ try{
   window._fbDel=async function(lt){
     if(lt._k)await _db.ref('lts/'+lt._k).remove();
   };
-  window._fbSaveCronos=async function(arr){
-    await _db.ref('cronos').remove();
-    for(const c of arr){const d={...c};delete d._k;await _db.ref('cronos').push(d);}
+
+  // ── Função de escrita CRONOS_LIST ─────────────────────────────
+  window._fbSaveCronosList=async function(lista){
+    // Limpar tarefas com _k antes de salvar (não existem no cronograma)
+    const clean=lista.map(c=>({
+      id:c.id,nome:c.nome,
+      meta:c.meta||null,
+      tarefas:(c.tarefas||[]).map(t=>{const d={...t};delete d._k;return d;})
+    }));
+    await _db.ref('cronos_list').set(clean);
   };
+
+  // Manter compat com código legado que usa _fbSaveCronos
+  window._fbSaveCronos=async function(){
+    if(window._fbSaveCronosList)await window._fbSaveCronosList(CRONOS_LIST);
+  };
+
   window._fbOk=true;
   window.addEventListener('DOMContentLoaded',()=>{
     const el=document.getElementById('fbst');
@@ -1118,7 +1162,13 @@ function clearRF(){
 // ═══ CRONOGRAMAS MÚLTIPLOS ═══════════════════════════════════════
 let CRONOS_LIST=JSON.parse(localStorage.getItem('clist5')||'[]');
 let CRONO_IDX=0;
-function svcList(){localStorage.setItem('clist5',JSON.stringify(CRONOS_LIST));}
+function svcList(){
+  localStorage.setItem('clist5',JSON.stringify(CRONOS_LIST));
+  if(window._fbOk&&window._fbSaveCronosList){
+    syncBar(true);
+    window._fbSaveCronosList(CRONOS_LIST).then(()=>syncBar(false)).catch(e=>{syncBar(false);console.error('Crono sync err:',e);});
+  }
+}
 // Migrar legado
 (function(){
   const old=localStorage.getItem('cro5');
@@ -1435,16 +1485,20 @@ function shareListPDF(){_share(getSorted(getFilt()),'Lista Filtrada');}
 
 // ═══ BACKUP ═══════════════════════════════════════════════════════
 function saveBackup(){
-  const blob=new Blob([JSON.stringify({lts:LTS,cronos:CRONOS,meta:CMETA},null,2)],{type:'application/json'});
+  const blob=new Blob([JSON.stringify({lts:LTS,cronos_list:CRONOS_LIST},null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;
   a.download=`backup_lts_${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(url);
   toast('✔ Backup salvo!');
 }
 function loadBackup(e){
   const f=e.target.files[0];if(!f)return;const r=new FileReader();
-  r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(!confirm('Substituir dados pelo backup?'))return;
-    LTS=Array.isArray(d)?d:(d.lts||[]);CRONOS=d.cronos||[];CMETA=d.meta||null;
-    sv();svc();render();toast('✔ Backup restaurado!');
+  r.onload=ev=>{try{
+    const d=JSON.parse(ev.target.result);
+    if(!confirm('Substituir dados pelo backup?'))return;
+    LTS=Array.isArray(d)?d:(d.lts||[]);
+    if(d.cronos_list){CRONOS_LIST=d.cronos_list;}
+    else if(d.cronos&&d.cronos.length){CRONOS_LIST=[{id:'bkp_1',nome:'Cronograma Backup',tarefas:d.cronos,meta:null}];}
+    sv();svcList();render();toast('✔ Backup restaurado!');
   }catch{toast('⚠️ Erro ao importar!','err');}};
   r.readAsText(f);e.target.value='';
 }
@@ -1469,11 +1523,13 @@ function render(){
 // ═══ INIT ═════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded',function(){
   fillSel();
-  // Se Firebase conectado, aguarda dados chegarem (onValue já disparou)
   if(window._fbOk){
-    // Usar dados do Firebase se já chegaram, senão localStorage como fallback
-    if(window._LTS_FB&&window._LTS_FB.length){LTS=window._LTS_FB;}
-    if(window._CRON_FB&&window._CRON_FB.length){CRONOS=window._CRON_FB;}
+    // Carregar dados do Firebase se já chegaram via onValue
+    if(window._LTS_FB&&window._LTS_FB.length)LTS=window._LTS_FB;
+    if(window._CRONOS_LIST_FB&&window._CRONOS_LIST_FB.length){
+      CRONOS_LIST=window._CRONOS_LIST_FB;
+      if(CRONO_IDX>=CRONOS_LIST.length)CRONO_IDX=0;
+    }
     window._fbReady=true;
   } else {
     // Modo local — dados demo se vazio
