@@ -832,7 +832,7 @@ function rPainel(){
         ${dal?`<span class="bd bal">⚠${dal}</span>`:''}
       </div></div>`;
   }).join('');
-  const rows=LTS.filter(l=>l.status==='P'||l.status==='E')
+  const rows=base.filter(l=>l.status==='P'||l.status==='E')
     .sort((a,b)=>{const o={Crítica:0,Alta:1,Normal:2};return(o[a.prio]??2)-(o[b.prio]??2)}).slice(0,12);
   const tb=document.getElementById('ptb');
   if(!rows.length){tb.innerHTML=`<tr><td colspan="8"><div class="es"><div class="ei">✅</div><p>Nenhuma LT pendente!</p></div></td></tr>`;return;}
@@ -932,25 +932,30 @@ function irParaEdicaoDup(){
 
 let _autoFillTimer=null;
 function scheduleAutoFill(){
+  // Dispara imediatamente se OS bater exato, senão aguarda 800ms
   clearTimeout(_autoFillTimer);
-  _autoFillTimer=setTimeout(autoFillOS,600);
+  _autoFillTimer=setTimeout(autoFillOS,800);
 }
 function autoFillOS(){
   clearTimeout(_autoFillTimer);
   const v=document.getElementById('fos').value.trim().toUpperCase();
-  if(v.length<4)return; // esperar ao menos 4 chars
-  // Busca exata primeiro, depois parcial
-  let m=CRONOS.find(c=>c.os&&c.os.trim().toUpperCase()===v);
-  if(!m)return; // só preenche com match exato
-  // Preencher apenas campos VAZIOS — nunca sobrescrever o que o usuário já digitou
+  if(!v)return;
+  // Busca exata por OS em todos os cronogramas
+  let m=null;
+  for(const crono of CRONOS_LIST){
+    m=(crono.tarefas||[]).find(c=>c.os&&c.os.trim().toUpperCase()===v);
+    if(m)break;
+  }
+  if(!m)return;
+  // Preenche apenas campos vazios — nunca sobrescreve o que o usuário digitou
   const fill=(id,val)=>{if(val){const e=document.getElementById(id);if(e&&!e.value.trim())e.value=val;}};
-  fill('fempresa',m.empresa);
-  fill('finicio',m.inicio?m.inicio.slice(0,16):'');
-  fill('ffim',m.fim?m.fim.slice(0,16):'');
-  fill('fequip',m.tag);
-  fill('fdesc',m.desc);
-  fill('fresp',m.resp||m.facilitador);
-  fill('fctrab',m.ctrab);
+  fill('fempresa', m.empresa);
+  fill('finicio',  m.inicio ? m.inicio.slice(0,16) : '');
+  fill('ffim',     m.fim    ? m.fim.slice(0,16)    : '');
+  fill('fequip',   m.tag);
+  fill('fdesc',    m.desc);
+  fill('fresp',    m.resp||m.facilitador);
+  fill('fctrab',   m.ctrab);
   toast('✔ Dados preenchidos do cronograma');
 }
 function salvarLT(){
