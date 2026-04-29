@@ -277,6 +277,11 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
 .pbo{background:#00301520;color:var(--sz-verde);border:1px solid var(--sz-verde)}
 .pbp{background:#1e2d4720;color:var(--muted);border:1px solid var(--faint)}
 .pbr{background:#3d1a0820;color:var(--sz-lrj);border:1px solid var(--sz-lrj)}
+.painel-area-btn{padding:5px 11px;background:var(--card);border:1px solid var(--bdr);border-radius:14px;
+  font-family:var(--fh);font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;
+  color:var(--muted);cursor:pointer;transition:all .2s;white-space:nowrap}
+.painel-area-btn:hover{border-color:var(--sz-aml);color:var(--text)}
+.painel-area-btn.on{background:var(--sz-inov);border-color:var(--sz-inov);color:#fff}
 /* MODAL */
 .mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:500;align-items:center;justify-content:center}
 .mo.on{display:flex}
@@ -325,6 +330,20 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
 
 <!-- PAINEL -->
 <div id="tab-painel" class="tp on">
+  <!-- Filtro de área do painel -->
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+    <span style="font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:1px;color:var(--sz-aml)">Área:</span>
+    <div style="display:flex;gap:5px;flex-wrap:wrap" id="painel-area-btns">
+      <button class="painel-area-btn on" data-area="" onclick="setPainelArea('')">Todas</button>
+      <button class="painel-area-btn" data-area="Extração Cavacos" onclick="setPainelArea('Extração Cavacos')">Extração Cavacos</button>
+      <button class="painel-area-btn" data-area="Cozimento" onclick="setPainelArea('Cozimento')">Cozimento</button>
+      <button class="painel-area-btn" data-area="Pré Branqueamento" onclick="setPainelArea('Pré Branqueamento')">Pré Branqueamento</button>
+      <button class="painel-area-btn" data-area="Depuração" onclick="setPainelArea('Depuração')">Depuração</button>
+      <button class="painel-area-btn" data-area="Branqueamento" onclick="setPainelArea('Branqueamento')">Branqueamento</button>
+      <button class="painel-area-btn" data-area="Laje DDW" onclick="setPainelArea('Laje DDW')">Laje DDW</button>
+      <button class="painel-area-btn" data-area="Planta Química" onclick="setPainelArea('Planta Química')">Planta Química</button>
+    </div>
+  </div>
   <div class="ks" id="kstrip"></div>
   <div id="astrip"></div>
   <div class="st">Por Disciplina</div>
@@ -350,7 +369,7 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
           <button class="btn bp bsm" style="margin-left:8px;font-size:10px" onclick="irParaEdicaoDup()">✏️ Ir para edição</button>
         </div>
       </div>
-      <div class="fi"><label>Ordem de Serviço (OS)</label><input id="fos" placeholder="OS-9900456" oninput="autoFillOS()"></div>
+      <div class="fi"><label>Ordem de Serviço (OS)</label><input id="fos" placeholder="OS-9900456" oninput="scheduleAutoFill()" onblur="autoFillOS()"></div>
       <div class="fi"><label>Cartão de Bloqueio</label><input id="fcartao" placeholder="CB-0087"></div>
       <div class="fi"><label>Nº do Cadeado</label><input id="fcadeado" placeholder="045"></div>
       <div class="fi"><label>Centro de Trabalho</label><input id="fctrab" placeholder="Ex: MECÂNICA-01"></div>
@@ -363,6 +382,7 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
           <option value="Depuração">Depuração</option>
           <option value="Branqueamento">Branqueamento</option>
           <option value="Laje DDW">Laje DDW</option>
+          <option value="Planta Química">Planta Química</option>
         </select>
       </div>
       <div class="fi"><label>Disciplina *</label><select id="fdisc"><option value="">— Selecione —</option></select></div>
@@ -437,6 +457,7 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
         <label style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;font-size:12px;color:var(--text);font-weight:normal;text-transform:none;letter-spacing:0"><input type="checkbox" class="ac-lista" value="Depuração" onchange="areaChk('lista')" style="width:14px;height:14px;accent-color:var(--sz-aml)"> Depuração</label>
         <label style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;font-size:12px;color:var(--text);font-weight:normal;text-transform:none;letter-spacing:0"><input type="checkbox" class="ac-lista" value="Branqueamento" onchange="areaChk('lista')" style="width:14px;height:14px;accent-color:var(--sz-aml)"> Branqueamento</label>
         <label style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;font-size:12px;color:var(--text);font-weight:normal;text-transform:none;letter-spacing:0"><input type="checkbox" class="ac-lista" value="Laje DDW" onchange="areaChk('lista')" style="width:14px;height:14px;accent-color:var(--sz-aml)"> Laje DDW</label>
+        <label style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;font-size:12px;color:var(--text);font-weight:normal;text-transform:none;letter-spacing:0"><input type="checkbox" class="ac-lista" value="Planta Química" onchange="areaChk('lista')" style="width:14px;height:14px;accent-color:var(--sz-aml)"> Planta Química</label>
         <hr style="border-color:var(--bdr);margin:4px 0">
         <button class="btn bs bsm" style="width:100%;margin-top:2px" onclick="toggleAreaDrop('lista')">✔ Fechar</button>
       </div>
@@ -496,6 +517,7 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
           <label style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;font-size:12px;color:var(--text);font-weight:normal;text-transform:none;letter-spacing:0"><input type="checkbox" class="ac-rel" value="Depuração" onchange="areaChk('rel')" style="width:14px;height:14px;accent-color:var(--sz-aml)"> Depuração</label>
           <label style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;font-size:12px;color:var(--text);font-weight:normal;text-transform:none;letter-spacing:0"><input type="checkbox" class="ac-rel" value="Branqueamento" onchange="areaChk('rel')" style="width:14px;height:14px;accent-color:var(--sz-aml)"> Branqueamento</label>
           <label style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;font-size:12px;color:var(--text);font-weight:normal;text-transform:none;letter-spacing:0"><input type="checkbox" class="ac-rel" value="Laje DDW" onchange="areaChk('rel')" style="width:14px;height:14px;accent-color:var(--sz-aml)"> Laje DDW</label>
+          <label style="display:flex;align-items:center;gap:7px;padding:4px 0;cursor:pointer;font-size:12px;color:var(--text);font-weight:normal;text-transform:none;letter-spacing:0"><input type="checkbox" class="ac-rel" value="Planta Química" onchange="areaChk('rel')" style="width:14px;height:14px;accent-color:var(--sz-aml)"> Planta Química</label>
           <hr style="border-color:var(--bdr);margin:4px 0">
           <button class="btn bs bsm" style="width:100%;margin-top:2px" onclick="toggleAreaDrop('rel')">✔ Fechar</button>
         </div>
@@ -767,14 +789,23 @@ function openAlarm(){
 }
 
 // ═══ PAINEL ═══════════════════════════════════════════════════════
+let painelArea='';
+function setPainelArea(area){
+  painelArea=area;
+  document.querySelectorAll('.painel-area-btn').forEach(b=>{
+    b.classList.toggle('on',b.dataset.area===area);
+  });
+  rPainel();
+}
 function rPainel(){
-  const tot=LTS.length,pend=LTS.filter(l=>l.status==='P').length,
-    exec=LTS.filter(l=>l.status==='E').length,conc=LTS.filter(l=>l.status==='C').length,
-    canc=LTS.filter(l=>l.status==='X').length,
-    crit=LTS.filter(l=>l.prio==='Crítica'&&l.status!=='C'&&l.status!=='X').length,
-    atrs=LTS.filter(ovd).length,perc=tot?Math.round(conc/tot*100):0;
+  const base=painelArea?LTS.filter(l=>l.area===painelArea):LTS;
+  const tot=base.length,pend=base.filter(l=>l.status==='P').length,
+    exec=base.filter(l=>l.status==='E').length,conc=base.filter(l=>l.status==='C').length,
+    canc=base.filter(l=>l.status==='X').length,
+    crit=base.filter(l=>l.prio==='Crítica'&&l.status!=='C'&&l.status!=='X').length,
+    atrs=base.filter(ovd).length,perc=tot?Math.round(conc/tot*100):0;
   const ks=[
-    {l:'Total LTs',v:tot,s:'cadastradas',c:'#1932c8',f:''},
+    {l:'Total LTs',v:tot,s:painelArea||'cadastradas',c:'#1932c8',f:''},
     {l:'Pendentes',v:pend,s:'aguardando',c:'#c85f0f',f:'P'},
     {l:'Em Execução',v:exec,s:'em andamento',c:'#1932c8',f:'E'},
     {l:'Concluídas',v:conc,s:'finalizadas',c:'#00c85a',f:'C'},
@@ -784,11 +815,11 @@ function rPainel(){
     {l:'% Concluído',v:perc+'%',s:'do total',c:'#c8910f',f:null},
   ];
   document.getElementById('kstrip').innerHTML=ks.map(k=>
-    `<div class="kpi" style="--kc:${k.c}" onclick="${k.f!==null?`kpiF('${k.f}')`:'void(0)'}" title="${k.f!==null?'Clique para filtrar':''}">
+    `<div class="kpi" style="--kc:${k.c}" onclick="${k.f!==null?`kpiF('${k.f}','${painelArea}')`:'void(0)'}" title="${k.f!==null?'Clique para filtrar':''}">
       <div class="kl">${k.l}</div><div class="kv">${k.v}</div>
       <div class="ks2">${k.s}${k.f!==null?' ↗':''}</div></div>`).join('');
   document.getElementById('dgrid').innerHTML=DISC.map(d=>{
-    const dl=LTS.filter(l=>l.disc===d.id);
+    const dl=base.filter(l=>l.disc===d.id);
     const dp=dl.filter(l=>l.status==='P').length,de=dl.filter(l=>l.status==='E').length,
       dc=dl.filter(l=>l.status==='C').length,da=dl.filter(l=>l.status==='X').length,dal=dl.filter(ovd).length;
     const cor=DC[d.id]||'var(--bdr)';
@@ -814,9 +845,14 @@ function rPainel(){
   </tr>`;}).join('');
   updAlarms();
 }
-function kpiF(f){
+function kpiF(f,area){
   document.getElementById('fsts').value=f;
   ['ftxt','fdisc2','fpri','feq','fblq'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  resetAreaFilt('lista');
+  if(area){
+    const chk=document.querySelector(`.ac-lista[value="${area}"]`);
+    if(chk){chk.checked=true;document.getElementById('ac-lista-all').checked=false;updateAreaBtn('lista');}
+  }
   document.querySelectorAll('.tb').forEach(b=>b.classList.remove('on'));
   document.querySelectorAll('.tb')[2].classList.add('on');
   document.querySelectorAll('.tp').forEach(p=>p.classList.remove('on'));
@@ -894,25 +930,27 @@ function irParaEdicaoDup(){
   toast('✏️ Editando LT existente');
 }
 
+let _autoFillTimer=null;
+function scheduleAutoFill(){
+  clearTimeout(_autoFillTimer);
+  _autoFillTimer=setTimeout(autoFillOS,600);
+}
 function autoFillOS(){
+  clearTimeout(_autoFillTimer);
   const v=document.getElementById('fos').value.trim().toUpperCase();
-  if(!v)return;
-  const m=CRONOS.find(c=>c.os&&c.os.trim().toUpperCase()===v);
-  if(!m)return;
-  const emp=document.getElementById('fempresa');
-  const ini=document.getElementById('finicio');
-  const fim=document.getElementById('ffim');
-  const eq=document.getElementById('fequip');
-  const desc=document.getElementById('fdesc');
-  const resp=document.getElementById('fresp');
-  const ctrab=document.getElementById('fctrab');
-  if(!emp.value&&m.empresa)emp.value=m.empresa;
-  if(!ini.value&&m.inicio)ini.value=m.inicio.slice(0,16);
-  if(!fim.value&&m.fim)fim.value=m.fim.slice(0,16);
-  if(!eq.value&&m.tag)eq.value=m.tag;
-  if(!desc.value&&m.desc)desc.value=m.desc;
-  if(!resp.value&&m.resp)resp.value=m.resp;
-  if(!ctrab.value&&m.ctrab)ctrab.value=m.ctrab;
+  if(v.length<4)return; // esperar ao menos 4 chars
+  // Busca exata primeiro, depois parcial
+  let m=CRONOS.find(c=>c.os&&c.os.trim().toUpperCase()===v);
+  if(!m)return; // só preenche com match exato
+  // Preencher apenas campos VAZIOS — nunca sobrescrever o que o usuário já digitou
+  const fill=(id,val)=>{if(val){const e=document.getElementById(id);if(e&&!e.value.trim())e.value=val;}};
+  fill('fempresa',m.empresa);
+  fill('finicio',m.inicio?m.inicio.slice(0,16):'');
+  fill('ffim',m.fim?m.fim.slice(0,16):'');
+  fill('fequip',m.tag);
+  fill('fdesc',m.desc);
+  fill('fresp',m.resp||m.facilitador);
+  fill('fctrab',m.ctrab);
   toast('✔ Dados preenchidos do cronograma');
 }
 function salvarLT(){
