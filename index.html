@@ -366,7 +366,7 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
         <input id="fnum" placeholder="LT-001234" oninput="checkDupLT()">
         <div id="dup-alert" style="display:none;margin-top:6px;background:#3d1a0830;border:1px solid var(--sz-lrj);border-radius:4px;padding:8px 10px;font-size:11px;color:var(--sz-lrj)">
           ⚠️ Esta LT já está cadastrada.
-          <button class="btn bp bsm" style="margin-left:8px;font-size:10px" onclick="irParaEdicaoDup()">✏️ Ir para edição</button>
+          <button class="btn bp bsm" style="margin-left:8px;font-size:10px" onclick="pedirSenhaEdit('editdup',null)">✏️ Ir para edição</button>
         </div>
       </div>
       <div class="fi"><label>Ordem de Serviço (OS)</label><input id="fos" placeholder="OS-9900456" oninput="scheduleAutoFill()" onblur="autoFillOS()"></div>
@@ -657,6 +657,26 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
   </div>
 </div>
 
+<!-- MODAL SENHA -->
+<div class="mo" id="msenha" onclick="closeMo(event,'msenha')">
+  <div class="md" style="max-width:340px;text-align:center">
+    <h3>🔒 Acesso Restrito</h3>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:14px">
+      Digite a senha para editar ou excluir esta LT
+    </div>
+    <input id="senha-input" type="password" placeholder="Senha" maxlength="30"
+      style="text-align:center;font-size:18px;letter-spacing:4px;width:100%;margin-bottom:12px"
+      onkeydown="if(event.key==='Enter')confirmarSenha()">
+    <div id="senha-erro" style="display:none;font-size:11px;color:var(--sz-brd);margin-bottom:10px">
+      ⚠️ Senha incorreta
+    </div>
+    <div class="fa" style="justify-content:center">
+      <button class="btn bp" onclick="confirmarSenha()">✔ Confirmar</button>
+      <button class="btn bs" onclick="fecharSenha()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <script>
@@ -908,6 +928,43 @@ function resetAreaFilt(ctx){
 }
 
 
+// ═══ SENHA DE EDIÇÃO ══════════════════════════════════════════════
+// Altere a senha abaixo conforme necessário
+const SENHA_EDIT='Suzano@2026';
+let _senhaAcao=null,_senhaId=null,_senhaExpira=0;
+
+function isSenhaOk(){return Date.now()<_senhaExpira;}
+
+function pedirSenhaEdit(acao,id){
+  if(isSenhaOk()){executarAcaoSenha(acao,id);return;}
+  _senhaAcao=acao;_senhaId=id;
+  document.getElementById('senha-input').value='';
+  document.getElementById('senha-erro').style.display='none';
+  document.getElementById('msenha').classList.add('on');
+  setTimeout(()=>document.getElementById('senha-input').focus(),100);
+}
+function confirmarSenha(){
+  const v=document.getElementById('senha-input').value;
+  if(v===SENHA_EDIT){
+    _senhaExpira=Date.now()+(30*60*1000);
+    fecharSenha();
+    executarAcaoSenha(_senhaAcao,_senhaId);
+  } else {
+    document.getElementById('senha-erro').style.display='block';
+    document.getElementById('senha-input').value='';
+    document.getElementById('senha-input').focus();
+  }
+}
+function fecharSenha(){
+  document.getElementById('msenha').classList.remove('on');
+  _senhaAcao=null;_senhaId=null;
+}
+function executarAcaoSenha(acao,id){
+  if(acao==='edit')editLT(id);
+  else if(acao==='del')delLT(id);
+  else if(acao==='editdup')irParaEdicaoDup();
+}
+
 function checkDupLT(){
   if(editId)return; // em modo edição não verifica
   const val=document.getElementById('fnum').value.trim().toUpperCase();
@@ -1060,7 +1117,12 @@ function saveMSts(){
   toast('✔ Status atualizado!');
   if(!window._fbOk)render();
 }
-function closeMo(e,id){if(e.target.id===id)document.getElementById(id).classList.remove('on');}
+function closeMo(e,id){
+  if(e.target.id===id){
+    if(id==='msenha'){fecharSenha();return;}
+    document.getElementById(id).classList.remove('on');
+  }
+}
 
 // ═══ SORT / FILTER ═════════════════════════════════════════════════
 function srt(f){if(sField===f)sAsc=!sAsc;else{sField=f;sAsc=true;}rLista();}
@@ -1127,8 +1189,8 @@ function rLista(){
       <td style="font-size:11px;color:${od?'var(--sz-brd)':'var(--muted)'}">${fdt(l.fim)}</td>
       <td><div style="display:flex;gap:4px">
         <button class="btn bs bsm" onclick="openMSts('${l.id}')" title="Status">🔄</button>
-        <button class="btn bs bsm" onclick="editLT('${l.id}')" title="Editar">✏️</button>
-        <button class="btn bd2 bsm" onclick="delLT('${l.id}')" title="Excluir">🗑</button>
+        <button class="btn bs bsm" onclick="pedirSenhaEdit('edit','${l.id}')" title="Editar">✏️</button>
+        <button class="btn bd2 bsm" onclick="pedirSenhaEdit('del','${l.id}')" title="Excluir">🗑</button>
       </div></td>
     </tr>`;}).join('');
 }
