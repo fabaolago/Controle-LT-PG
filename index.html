@@ -282,6 +282,45 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
   color:var(--muted);cursor:pointer;transition:all .2s;white-space:nowrap}
 .painel-area-btn:hover{border-color:var(--sz-aml);color:var(--text)}
 .painel-area-btn.on{background:var(--sz-inov);border-color:var(--sz-inov);color:#fff}
+/* CARTÃO BLOQUEADOR */
+.cb-tab{padding:6px 13px;background:var(--card);border:1px solid var(--bdr);border-radius:5px;
+  font-family:var(--fh);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;
+  color:var(--muted);cursor:pointer;transition:all .2s;white-space:nowrap}
+.cb-tab:hover{border-color:var(--sz-aml);color:var(--text)}
+.cb-tab.on{background:var(--sz-inov);border-color:var(--sz-inov);color:#fff}
+.cb-card{background:var(--card);border:1px solid var(--bdr);border-radius:8px;overflow:hidden;margin-bottom:16px}
+.cb-header{background:#090e18;padding:10px 14px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;border-bottom:2px solid var(--sz-aml)}
+.cb-title{font-family:var(--fh);font-size:18px;font-weight:800;color:var(--sz-aml);letter-spacing:1px}
+.cb-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.cb-body{display:grid;grid-template-columns:1fr 1fr;gap:0}
+@media(max-width:700px){.cb-body{grid-template-columns:1fr}}
+.cb-side{padding:12px 14px}
+.cb-side-title{font-family:var(--fh);font-size:10px;font-weight:800;text-transform:uppercase;
+  letter-spacing:1px;color:var(--sz-aml);margin-bottom:8px;padding-bottom:4px;border-bottom:1px solid var(--bdr)}
+.cb-side-l{border-right:1px solid var(--bdr)}
+.cb-fonte-row{display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--bdr);font-size:12px}
+.cb-fonte-tag{font-family:var(--fh);font-size:12px;font-weight:700;color:var(--sz-inov);min-width:80px;flex-shrink:0}
+.cb-fonte-desc{flex:1;color:#dde8f5}
+.cb-fonte-num{font-size:11px;color:var(--muted);min-width:55px;text-align:right;flex-shrink:0}
+.cb-fonte-btns{display:flex;gap:3px;flex-shrink:0}
+.cb-lt-row{display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid var(--bdr);font-size:12px}
+.cb-lt-num{font-family:var(--fh);font-size:13px;font-weight:800;color:var(--sz-aml);min-width:90px;flex-shrink:0}
+.cb-lt-desc{flex:1;color:#dde8f5;font-size:11px}
+.cb-lt-lider{font-size:11px;color:var(--muted);min-width:80px;flex-shrink:0}
+.cb-lt-empresa{font-size:11px;color:var(--muted);min-width:80px;flex-shrink:0}
+.cb-empty-row{font-size:11px;color:var(--faint);padding:5px 0;font-style:italic}
+.cb-add-row{display:flex;align-items:center;gap:6px;padding:8px 0;margin-top:4px}
+.cb-legenda{font-size:10px;color:var(--muted);padding:8px 14px;border-top:1px solid var(--bdr);background:#090e18}
+
+@media print{
+  .cb-tab,.btn,#cb-tabs,.er,.flt{display:none!important}
+  .cb-card{border:1px solid #ccc;break-inside:avoid}
+  .cb-header{background:#1932c8!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .cb-title{color:#f59e0b!important}
+  .cb-body{grid-template-columns:1fr 1fr!important}
+  body{background:#fff}
+  td,th{color:#000!important}
+}
 /* MODAL */
 .mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:500;align-items:center;justify-content:center}
 .mo.on{display:flex}
@@ -325,6 +364,7 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
   <button class="tb"     onclick="tab('lista',this)">📋 Lista de LTs</button>
   <button class="tb"     onclick="tab('rel',this)">📈 Relatório</button>
   <button class="tb"     onclick="tab('crono',this)">📅 Cronograma <span class="adot" id="cdot"></span></button>
+  <button class="tb"     onclick="tab('cb',this)">🔒 Cart. Bloqueio</button>
 </div>
 <main>
 
@@ -615,6 +655,41 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
     </tr></thead><tbody id="ctb"></tbody></table></div>
   </div>
 </div>
+
+<!-- CARTÕES BLOQUEADORES -->
+<div id="tab-cb" class="tp">
+  <!-- Barra de navegação entre cartões -->
+  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+    <div id="cb-tabs" style="display:flex;gap:4px;flex-wrap:wrap;flex:1"></div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="btn bp bsm" onclick="novoCB()">+ Novo Cartão</button>
+      <button class="btn bs bsm" onclick="document.getElementById('cb-import-input').click()">📂 Importar Excel</button>
+      <input type="file" id="cb-import-input" accept=".xlsx,.xls" style="display:none" onchange="importarCBExcel(event)">
+    </div>
+  </div>
+
+  <!-- Cartão ativo -->
+  <div id="cb-content">
+    <div class="es"><div class="ei">🔒</div><p>Nenhum cartão. Clique em "+ Novo Cartão" ou importe do Excel.</p></div>
+  </div>
+</div>
+
+<!-- MODAL EDIÇÃO FONTE DE ENERGIA -->
+<div class="mo" id="mcb-fonte" onclick="closeMo(event,'mcb-fonte')">
+  <div class="md" style="max-width:420px">
+    <h3 id="mcb-fonte-title">➕ Fonte de Energia</h3>
+    <div style="display:grid;gap:9px">
+      <div class="fi"><label>TAG</label><input id="cbf-tag" placeholder="Ex: 322UH201"></div>
+      <div class="fi"><label>Descrição da Fonte</label><input id="cbf-desc" placeholder="Ex: VMB ENTRADA ÓLEO UH201"></div>
+      <div class="fi"><label>Nº Cadeado / Cartão</label><input id="cbf-num" placeholder="Ex: 621285"></div>
+    </div>
+    <div class="fa">
+      <button class="btn bp" onclick="salvarFonte()">💾 Salvar</button>
+      <button class="btn bs" onclick="document.getElementById('mcb-fonte').classList.remove('on')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
 </main>
 
 <!-- MODAL STATUS -->
@@ -930,7 +1005,7 @@ function resetAreaFilt(ctx){
 
 // ═══ SENHA DE EDIÇÃO ══════════════════════════════════════════════
 // Altere a senha abaixo conforme necessário
-const SENHA_EDIT='Suzano@2026';
+const SENHA_EDIT='pg26';
 let _senhaAcao=null,_senhaId=null,_senhaExpira=0;
 
 function isSenhaOk(){return Date.now()<_senhaExpira;}
@@ -1588,6 +1663,371 @@ function shareRelPDF(){
 }
 function shareListPDF(){_share(getSorted(getFilt()),'Lista Filtrada');}
 
+// ═══ CARTÕES BLOQUEADORES ══════════════════════════════════════════
+let CB_LIST = JSON.parse(localStorage.getItem('cb_list5') || '[]');
+let CB_IDX  = 0;
+let _cbFonteIdx = null; // índice da fonte sendo editada (null = nova)
+
+function svCB(){ 
+  localStorage.setItem('cb_list5', JSON.stringify(CB_LIST));
+  if(window._fbOk && window._fbSaveCBList){
+    syncBar(true);
+    window._fbSaveCBList(CB_LIST).then(()=>syncBar(false)).catch(e=>{syncBar(false);console.error(e);});
+  }
+}
+
+// Firebase para CB_LIST
+if(window._fbOk !== undefined){
+  // Adicionar escuta ao Firebase para CB_LIST (executado após init)
+  setTimeout(()=>{
+    try{
+      const _db2 = firebase.database();
+      _db2.ref('cb_list').on('value', snap=>{
+        const v = snap.val();
+        if(v !== null){
+          let lista = Array.isArray(v) ? v :
+            Object.keys(v).sort((a,b)=>Number(a)-Number(b)).map(k=>v[k]);
+          CB_LIST = lista;
+          localStorage.setItem('cb_list5', JSON.stringify(CB_LIST));
+          if(CB_IDX >= CB_LIST.length) CB_IDX = Math.max(0, CB_LIST.length-1);
+          if(document.querySelector('#tab-cb.on') || document.querySelector('#tab-cb.tp.on')){
+            rCBTabs(); rCB();
+          }
+        } else {
+          CB_LIST = [];
+        }
+      });
+      window._fbSaveCBList = async function(lista){
+        const clean = lista.map(c=>({...c}));
+        await _db2.ref('cb_list').set(clean);
+      };
+    }catch(e){ console.error('CB Firebase:', e); }
+  }, 1500);
+}
+
+function getCB(){ return CB_LIST[CB_IDX] || null; }
+
+function novoCB(){
+  const nome = prompt('Nome do cartão bloqueador:', 'CB0'+(CB_LIST.length+1));
+  if(!nome) return;
+  const desc = prompt('Descrição / Equipamento:', '') || '';
+  CB_LIST.push({id:'cb_'+Date.now(), nome, desc, fontes:[], cor:'#1932c8'});
+  CB_IDX = CB_LIST.length - 1;
+  svCB(); rCBTabs(); rCB();
+}
+
+function rCBTabs(){
+  const bar = document.getElementById('cb-tabs');
+  if(!bar) return;
+  if(!CB_LIST.length){ bar.innerHTML=''; return; }
+  bar.innerHTML = CB_LIST.map((c,i)=>
+    `<button class="cb-tab ${i===CB_IDX?'on':''}" onclick="switchCB(${i})">${c.nome}</button>`
+  ).join('');
+}
+
+function switchCB(idx){
+  CB_IDX = idx;
+  rCBTabs(); rCB();
+}
+
+function rCB(){
+  const el = document.getElementById('cb-content');
+  if(!el) return;
+  const c = getCB();
+  if(!c){
+    el.innerHTML=`<div class="es"><div class="ei">🔒</div><p>Nenhum cartão. Clique em "+ Novo Cartão" ou importe do Excel.</p></div>`;
+    return;
+  }
+  // Coletar LTs vinculadas a este cartão
+  const ltsCB = LTS.filter(l => {
+    const cb = (l.cartao||'').trim().toUpperCase();
+    const nome = c.nome.trim().toUpperCase();
+    return cb === nome || cb === nome.replace(/^CB0*/,'CB');
+  });
+
+  const fontesHTML = c.fontes.length ? c.fontes.map((f,i)=>`
+    <div class="cb-fonte-row">
+      <span class="cb-fonte-tag">${f.tag||'—'}</span>
+      <span class="cb-fonte-desc">${f.desc||'—'}</span>
+      <span class="cb-fonte-num">${f.num||'—'}</span>
+      <span style="width:18px;text-align:center;font-size:11px;color:var(--muted)">□</span>
+      <span style="width:18px;text-align:center;font-size:11px;color:var(--muted)">□</span>
+      <div class="cb-fonte-btns">
+        <button class="btn bs bsm" onclick="pedirSenhaEdit('cbFonteEdit','${c.id}_${i}')" title="Editar">✏️</button>
+        <button class="btn bd2 bsm" onclick="pedirSenhaEdit('cbFonteDel','${c.id}_${i}')" title="Excluir">🗑</button>
+      </div>
+    </div>`).join('')
+    : `<div class="cb-empty-row">Nenhuma fonte cadastrada</div>`;
+
+  const ltsHTML = ltsCB.length ? ltsCB.map(l=>`
+    <div class="cb-lt-row">
+      <span class="cb-lt-num">${l.num}</span>
+      <span class="cb-lt-desc">${l.equip||l.desc||'—'}</span>
+      <span class="cb-lt-lider">${l.lider||'—'}</span>
+      <span class="cb-lt-empresa">${l.empresa||'—'}</span>
+      <span style="width:18px;text-align:center;font-size:11px;color:var(--muted)">□</span>
+      <span style="width:18px;text-align:center;font-size:11px;color:var(--muted)">□</span>
+    </div>`).join('')
+    : `<div class="cb-empty-row">Nenhuma LT vinculada a este cartão</div>`;
+
+  el.innerHTML = `
+    <div class="cb-card">
+      <div class="cb-header">
+        <div>
+          <div class="cb-title">CARTÃO BLOQUEADOR · ${c.nome}</div>
+          <div class="cb-sub">${c.desc||''}</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn bs bsm" onclick="editarCB()">✏️ Renomear</button>
+          <button class="btn bp bsm" onclick="pedirSenhaEdit('cbAddFonte',null)">+ Fonte de Energia</button>
+          <button class="btn baz bsm" onclick="compartilharCBPDF()">📤 Imprimir / PDF</button>
+          <button class="btn bd2 bsm" onclick="pedirSenhaEdit('cbDel',null)">🗑 Remover</button>
+        </div>
+      </div>
+      <div class="cb-body">
+        <!-- LADO ESQUERDO: Fontes de Energia -->
+        <div class="cb-side cb-side-l">
+          <div class="cb-side-title">⚡ Fontes de Energia — Bloqueio</div>
+          <div style="display:grid;grid-template-columns:80px 1fr 65px 22px 22px 58px;gap:0;margin-bottom:4px">
+            <span style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase">TAG</span>
+            <span style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase">FONTE DE ENERGIA</span>
+            <span style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase">Nº CART.</span>
+            <span style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;text-align:center">B</span>
+            <span style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;text-align:center">D</span>
+            <span></span>
+          </div>
+          ${fontesHTML}
+        </div>
+        <!-- LADO DIREITO: Atividades / LTs -->
+        <div class="cb-side">
+          <div class="cb-side-title">📋 Atividades Externas — LTs Vinculadas</div>
+          <div style="display:grid;grid-template-columns:90px 1fr 80px 80px 22px 22px;gap:0;margin-bottom:4px">
+            <span style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase">Nº LT</span>
+            <span style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase">DESCRIÇÃO</span>
+            <span style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase">EXEC./LÍDER</span>
+            <span style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase">EMPRESA</span>
+            <span style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;text-align:center">A</span>
+            <span style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;text-align:center">E</span>
+          </div>
+          ${ltsHTML}
+        </div>
+      </div>
+      <div class="cb-legenda">
+        B: Bloqueado e testado &nbsp;·&nbsp; D: Fonte liberada para desbloqueio &nbsp;·&nbsp; A: LT autorizada &nbsp;·&nbsp; E: LT encerrada
+      </div>
+    </div>`;
+}
+
+function editarCB(){
+  const c = getCB(); if(!c) return;
+  const nome = prompt('Nome do cartão:', c.nome); if(!nome) return;
+  const desc = prompt('Descrição:', c.desc||'');
+  c.nome = nome; c.desc = desc||'';
+  svCB(); rCBTabs(); rCB();
+}
+
+// Adicionar / editar fonte
+let _cbFonteCtx = null;
+function abrirModalFonte(cbId, fonteIdx){
+  const c = CB_LIST.find(x=>x.id===cbId) || getCB();
+  if(!c) return;
+  _cbFonteCtx = {cbId: c.id, idx: fonteIdx};
+  const isEdit = fonteIdx !== null && fonteIdx !== undefined;
+  document.getElementById('mcb-fonte-title').textContent = isEdit ? '✏️ Editar Fonte' : '➕ Nova Fonte de Energia';
+  if(isEdit){
+    const f = c.fontes[fonteIdx] || {};
+    document.getElementById('cbf-tag').value  = f.tag  || '';
+    document.getElementById('cbf-desc').value = f.desc || '';
+    document.getElementById('cbf-num').value  = f.num  || '';
+  } else {
+    document.getElementById('cbf-tag').value  = '';
+    document.getElementById('cbf-desc').value = '';
+    document.getElementById('cbf-num').value  = '';
+  }
+  document.getElementById('mcb-fonte').classList.add('on');
+  setTimeout(()=>document.getElementById('cbf-tag').focus(), 100);
+}
+
+function salvarFonte(){
+  const tag  = document.getElementById('cbf-tag').value.trim().toUpperCase();
+  const desc = document.getElementById('cbf-desc').value.trim().toUpperCase();
+  const num  = document.getElementById('cbf-num').value.trim();
+  if(!desc){ toast('⚠️ Preencha a descrição.','err'); return; }
+  const c = CB_LIST.find(x=>x.id===_cbFonteCtx.cbId);
+  if(!c) return;
+  if(_cbFonteCtx.idx !== null && _cbFonteCtx.idx !== undefined){
+    c.fontes[_cbFonteCtx.idx] = {tag, desc, num};
+  } else {
+    c.fontes.push({tag, desc, num});
+  }
+  svCB();
+  document.getElementById('mcb-fonte').classList.remove('on');
+  rCB(); toast('✔ Fonte salva!');
+}
+
+function deletarFonte(cbId, idx){
+  const c = CB_LIST.find(x=>x.id===cbId); if(!c) return;
+  c.fontes.splice(idx, 1);
+  svCB(); rCB(); toast('🗑️ Fonte removida.');
+}
+
+function deletarCB(){
+  const c = getCB(); if(!c || !confirm('Remover cartão '+c.nome+'?')) return;
+  CB_LIST.splice(CB_IDX, 1);
+  CB_IDX = Math.max(0, CB_IDX-1);
+  svCB(); rCBTabs(); rCB();
+  toast('🗑️ Cartão removido.');
+}
+
+// Importar do Excel
+function importarCBExcel(e){
+  const file = e.target.files[0]; if(!file) return;
+  e.target.value='';
+  if(typeof XLSX === 'undefined'){ toast('⚠️ Abra no Chrome','err'); return; }
+  toast('⏳ Importando cartões...');
+  const r = new FileReader();
+  r.onload = function(ev){
+    try{
+      const wb = XLSX.read(new Uint8Array(ev.target.result), {type:'array', raw:true});
+      let importados = 0;
+      wb.SheetNames.forEach(shName=>{
+        // Só processar abas que parecem cartões (nome contém CB ou CARTÃO)
+        if(!shName.toUpperCase().includes('CB') && !shName.toUpperCase().includes('CART')) return;
+        const ws = wb.Sheets[shName];
+        const json = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, defval:''});
+        // Extrair nome do cartão e descrição do equipamento
+        let cbNome='', cbDesc='';
+        for(let i=0;i<Math.min(5,json.length);i++){
+          const row = json[i]||[];
+          // Linha com "CB01", "CB02" etc
+          const cbMatch = row.join(' ').match(/\bCB\d+\b/);
+          if(cbMatch && !cbNome) cbNome = cbMatch[0];
+          // Linha com descrição do equipamento (não é cabeçalho nem está vazia)
+          const rowText = row.filter(c=>c).join(' ').trim();
+          if(rowText && !cbNome && rowText.length>3) cbDesc = rowText;
+          if(cbNome && rowText && rowText !== cbNome) cbDesc = rowText;
+        }
+        if(!cbNome) cbNome = shName.replace('CARTÃO BLOQUEADOR ','').trim();
+        // Encontrar linha de cabeçalho TAG/FONTES
+        let hRow = -1;
+        for(let i=0;i<Math.min(10,json.length);i++){
+          const r2 = (json[i]||[]).map(c=>(c||'').toString().toLowerCase());
+          if(r2.some(c=>c.includes('fontes') || c==='tag')) { hRow=i; break; }
+        }
+        if(hRow===-1) return;
+        // Extrair fontes de energia (lado esquerdo: TAG, FONTE, Nº CARTÃO)
+        const fontes = [];
+        for(let i=hRow+1; i<json.length; i++){
+          const row = json[i]||[];
+          const tag  = (row[0]||'').toString().trim();
+          const desc = (row[1]||'').toString().trim();
+          const num  = (row[2]||'').toString().trim();
+          if(!desc || desc.toLowerCase().includes('bloqueado') || desc.toLowerCase().includes('fonte liberada')) break;
+          if(tag || desc) fontes.push({tag: tag.toUpperCase(), desc: desc.toUpperCase(), num});
+        }
+        if(!fontes.length) return;
+        // Verificar se já existe cartão com esse nome
+        const existente = CB_LIST.find(c=>c.nome.toUpperCase()===cbNome.toUpperCase());
+        if(existente){
+          existente.fontes = fontes;
+          existente.desc = cbDesc;
+        } else {
+          CB_LIST.push({id:'cb_'+Date.now()+'_'+importados, nome:cbNome, desc:cbDesc, fontes});
+        }
+        importados++;
+      });
+      if(!importados){ toast('⚠️ Nenhum cartão encontrado no arquivo','err'); return; }
+      CB_IDX = 0;
+      svCB(); rCBTabs(); rCB();
+      toast(`✔ ${importados} cartão(ões) importado(s)!`);
+    }catch(err){ console.error(err); toast('⚠️ Erro: '+err.message,'err'); }
+  };
+  r.readAsArrayBuffer(file);
+}
+
+// PDF do cartão
+async function compartilharCBPDF(){
+  const c = getCB(); if(!c) return;
+  if(typeof jspdf==='undefined'||!window.jspdf){ toast('⚠️ jsPDF não carregado','err'); return; }
+  const {jsPDF} = window.jspdf;
+  const doc = new jsPDF({orientation:'landscape', unit:'mm', format:'a4'});
+  // Header
+  doc.setFillColor(25,50,200); doc.rect(0,0,297,18,'F');
+  doc.setTextColor(200,145,15); doc.setFont('helvetica','bold'); doc.setFontSize(14);
+  doc.text(`CARTÃO BLOQUEADOR · ${c.nome}`,14,12);
+  doc.setTextColor(220,232,250); doc.setFont('helvetica','normal'); doc.setFontSize(9);
+  doc.text(c.desc||'', 14, 17);
+  doc.setFontSize(8);
+  doc.text(`Gerado: ${new Date().toLocaleString('pt-BR')}`, 220, 12);
+
+  // Coletar LTs
+  const ltsCB = LTS.filter(l=>{
+    const cb=(l.cartao||'').trim().toUpperCase();
+    const nome=c.nome.trim().toUpperCase();
+    return cb===nome||cb===nome.replace(/^CB0*/,'CB');
+  });
+
+  // Lado esquerdo — Fontes de Energia
+  doc.autoTable({
+    startY:22, margin:{left:10, right:152},
+    styles:{fontSize:7,cellPadding:2,textColor:[220,236,255],fillColor:[20,28,43]},
+    headStyles:{fillColor:[25,50,200],textColor:[200,145,15],fontStyle:'bold'},
+    alternateRowStyles:{fillColor:[25,35,58]},
+    head:[['TAG','FONTE DE ENERGIA','Nº CARTÃO','B','D']],
+    body: c.fontes.map(f=>[f.tag||'',f.desc||'',f.num||'','□','□']),
+    foot:[['B: Bloqueado e testado   D: Fonte liberada para desbloqueio']],
+    footStyles:{fontSize:6,textColor:[150,160,180],fillColor:[20,28,43]},
+    columnStyles:{3:{halign:'center',cellWidth:8},4:{halign:'center',cellWidth:8}}
+  });
+
+  // Lado direito — Atividades/LTs
+  doc.autoTable({
+    startY:22, margin:{left:150, right:10},
+    styles:{fontSize:7,cellPadding:2,textColor:[220,236,255],fillColor:[20,28,43]},
+    headStyles:{fillColor:[25,50,200],textColor:[200,145,15],fontStyle:'bold'},
+    alternateRowStyles:{fillColor:[25,35,58]},
+    head:[['Nº LT','DESCRIÇÃO DA ATIVIDADE','EXEC./LÍDER','EMPRESA','A','E']],
+    body: ltsCB.length ? ltsCB.map(l=>[l.num,l.equip||l.desc||'',l.lider||'',l.empresa||'','□','□'])
+                       : [['—','Nenhuma LT vinculada','','','','']],
+    foot:[['E: LT encerrada']],
+    footStyles:{fontSize:6,textColor:[150,160,180],fillColor:[20,28,43]},
+    columnStyles:{4:{halign:'center',cellWidth:8},5:{halign:'center',cellWidth:8}}
+  });
+
+  const fname = `CartaoBloqueador_${c.nome}_${new Date().toISOString().slice(0,10)}.pdf`;
+  try{
+    if(navigator.share&&navigator.canShare){
+      const blob=doc.output('blob');
+      const file=new File([blob],fname,{type:'application/pdf'});
+      if(navigator.canShare({files:[file]})){
+        await navigator.share({files:[file],title:'Cartão Bloqueador '+c.nome});
+        toast('✔ PDF compartilhado!'); return;
+      }
+    }
+    doc.save(fname); toast('✔ PDF salvo!');
+  }catch(err){ if(err.name!=='AbortError') toast('⚠️ Erro: '+err.message,'err'); }
+}
+
+// Extender executarAcaoSenha para ações de CB
+const _execAcaoOriginal = executarAcaoSenha;
+function executarAcaoSenha(acao, id){
+  if(acao==='cbAddFonte'){ abrirModalFonte(getCB()?.id, null); }
+  else if(acao==='cbFonteEdit'){
+    const [cbId, idx] = id.split('_'); 
+    const realIdx = parseInt(id.split('_').pop());
+    const realCbId = id.substring(0, id.lastIndexOf('_'));
+    abrirModalFonte(realCbId, realIdx);
+  }
+  else if(acao==='cbFonteDel'){
+    const parts = id.split('_');
+    const idx = parseInt(parts.pop());
+    const cbId = parts.join('_');
+    deletarFonte(cbId, idx);
+  }
+  else if(acao==='cbDel'){ deletarCB(); }
+  else { _execAcaoOriginal(acao, id); }
+}
+
 // ═══ BACKUP ═══════════════════════════════════════════════════════
 function saveBackup(){
   const blob=new Blob([JSON.stringify({lts:LTS,cronos_list:CRONOS_LIST},null,2)],{type:'application/json'});
@@ -1622,6 +2062,7 @@ function render(){
   if(!a||a==='tab-lista')rLista();
   if(!a||a==='tab-rel')rRel();
   if(!a||a==='tab-crono')rCrono();
+  if(!a||a==='tab-cb'){rCBTabs();rCB();}
   updAlarms();
 }
 
