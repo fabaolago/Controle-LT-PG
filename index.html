@@ -397,8 +397,8 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
     </div>
     <div class="fs">Responsáveis</div>
     <div class="fg">
-      <div class="fi"><label>Empresa *</label><input id="fempresa" placeholder="Mecânica Industrial Ltda"></div>
-      <div class="fi"><label>Executante / Líder *</label><input id="flider" placeholder="José da Silva"></div>
+      <div class="fi"><label>Empresa</label><input id="fempresa" placeholder="Mecânica Industrial Ltda"></div>
+      <div class="fi"><label>Executante / Líder</label><input id="flider" placeholder="José da Silva"></div>
       <div class="fi"><label>Responsável / Supervisor</label><input id="fresp" placeholder="Nome do responsável"></div>
       <div class="fi"><label>Status</label>
         <select id="fstatus">
@@ -409,8 +409,8 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
     </div>
     <div class="fs">Datas Previstas</div>
     <div class="fg">
-      <div class="fi"><label>Início Previsto *</label><input type="datetime-local" id="finicio"></div>
-      <div class="fi"><label>Término Previsto *</label><input type="datetime-local" id="ffim"></div>
+      <div class="fi"><label>Início Previsto</label><input type="datetime-local" id="finicio"></div>
+      <div class="fi"><label>Término Previsto</label><input type="datetime-local" id="ffim"></div>
     </div>
     <div class="fa">
       <button class="btn bp" onclick="salvarLT()">💾 Salvar LT</button>
@@ -1032,7 +1032,7 @@ function salvarLT(){
   const status=document.getElementById('fstatus').value;
   const inicio=document.getElementById('finicio').value;
   const fim=document.getElementById('ffim').value;
-  if(!num||!disc||!equip){toast('⚠️ Preencha os campos obrigatórios: LT, Disciplina e Equipamento!','err');return;}
+  if(!num||!area||!disc||!equip){toast('⚠️ Preencha: Nº LT, Área, Disciplina e Equipamento.','err');return;}
   if(inicio&&fim&&new Date(fim)<=new Date(inicio)){toast('⚠️ Término deve ser após o início!','err');return;}
   if(!editId){
     const dup=LTS.find(l=>l.num===num);
