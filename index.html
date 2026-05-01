@@ -711,7 +711,7 @@ function syncBar(on){
 
 // ═══ HELPERS ═════════════════════════════════════════════════════
 function dn(id){return DISC.find(d=>d.id===id)||{n:id||'—'};}
-function stl(s){return{P:'Pendente',E:'Em Execução',C:'Concluída',X:'Cancelada'}[s]||s;}
+function stl(s){return{P:'Não iniciado',E:'Em Execução',C:'Concluída',X:'Cancelada'}[s]||s;}
 function fdt(dt){
   if(!dt)return'—';
   try{const d=new Date(dt);if(isNaN(d))return String(dt);
