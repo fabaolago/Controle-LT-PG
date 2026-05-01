@@ -1035,9 +1035,24 @@ function fecharSenha(){
   _senhaAcao=null;_senhaId=null;
 }
 function executarAcaoSenha(acao,id){
+  // Ações LT
   if(acao==='edit')editLT(id);
   else if(acao==='del')delLT(id);
   else if(acao==='editdup')irParaEdicaoDup();
+  // Ações Cartão Bloqueador
+  else if(acao==='cbAddFonte'){ abrirModalFonte(getCB()?.id, null); }
+  else if(acao==='cbFonteEdit'){
+    const realIdx = parseInt(id.split('_').pop());
+    const realCbId = id.substring(0, id.lastIndexOf('_'));
+    abrirModalFonte(realCbId, realIdx);
+  }
+  else if(acao==='cbFonteDel'){
+    const parts = id.split('_');
+    const idx = parseInt(parts.pop());
+    const cbId = parts.join('_');
+    deletarFonte(cbId, idx);
+  }
+  else if(acao==='cbDel'){ deletarCB(); }
 }
 
 function checkDupLT(){
@@ -1947,251 +1962,122 @@ function importarCBExcel(e){
 
 // PDF do cartão
 async function compartilharCBPDF(){
-  const c = getCB(); if(!c) return;
-  if(!window.jspdf){ toast('⚠️ jsPDF não carregado','err'); return; }
-  const {jsPDF} = window.jspdf;
+  const c=getCB();if(!c)return;
+  if(!window.jspdf){toast('⚠️ jsPDF não carregado','err');return;}
+  const {jsPDF}=window.jspdf;
 
-  // Coletar LTs vinculadas
-  const ltsCB = LTS.filter(l=>{
+  // LTs vinculadas a este cartão
+  const ltsCB=LTS.filter(l=>{
     const cb=(l.cartao||'').trim().toUpperCase();
     const nome=c.nome.trim().toUpperCase();
     return cb===nome||cb===nome.replace(/^CB0*/,'CB');
   });
 
-  // ── CONFIGURAÇÕES DE LAYOUT ────────────────────────────────────
-  // A4 retrato: 210 x 297mm
-  // O cartão ocupa metade da folha (frente) = 210 x 148mm
-  // Verso = outra metade (dobrado)
-  // Cada lado (esq/dir) = metade da largura = ~101mm
-  const doc = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
-  const PW = 210, PH = 297;
-  const HALF_H = PH / 2; // 148.5mm — linha de dobra
-  const MARGIN = 4;
-  const MID = PW / 2; // 105mm — divisória central
-  const LINHA_H = 7; // altura de cada linha de dados
+  // A4 landscape: 297 x 210mm
+  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
+  // Metadados para impressão correta
+  doc.setProperties({title:'Cartão Bloqueador '+c.nome,subject:c.desc||'',creator:'Controle LT Suzano'});
 
-  // Cores
-  const AZUL = [25, 50, 200];
-  const AMARELO = [200, 145, 15];
-  const PRETO = [0, 0, 0];
-  const CINZA_BORDA = [180, 180, 180];
-  const CINZA_HEADER = [230, 230, 230];
-  const BRANCO = [255, 255, 255];
+  const PW=297,PH=210,M=6,LH=7.5,MIN_ROWS=20;
+  const AZUL=[25,50,200],AMLR=[200,145,15],PRETO=[0,0,0];
+  const CZH=[215,215,215],CZB=[150,150,150],BRANCO=[255,255,255],LIST=[246,246,250];
 
-  // ── FUNÇÃO AUXILIAR: desenhar um cartão ───────────────────────
-  // offsetY = 0 para frente (topo), HALF_H para verso (baixo)
-  function desenharCartao(offsetY, isVerso){
-    const x0 = MARGIN;
-    const y0 = offsetY + MARGIN;
-    const totW = PW - MARGIN*2;
-    const midX = x0 + totW/2;
-    const ladoW = totW/2 - 1;
+  // Linha 1 do cabeçalho: "CARTÃO BLOQUEADOR: DDW"
+  const cab1 = c.desc ? 'CARTÃO BLOQUEADOR: '+c.desc.split(/[\s\-]/)[0] : 'CARTÃO BLOQUEADOR';
 
-    // ── CABEÇALHO ─────────────────────────────────────────────
-    // Fundo azul
+  function drawHeader(){
+    // Faixa azul escura
     doc.setFillColor(...AZUL);
-    doc.rect(x0, y0, totW, 12, 'F');
-    // Título esquerdo
-    doc.setFont('helvetica','bold'); doc.setFontSize(9);
-    doc.setTextColor(...AMARELO);
-    doc.text('CARTÃO BLOQUEADOR: SUZANO', x0+2, y0+5);
-    doc.setFontSize(14);
-    doc.text(c.nome, x0+2, y0+11);
-    // Descrição equipamento
-    doc.setFontSize(7); doc.setFont('helvetica','normal');
-    doc.setTextColor(220,232,250);
-    if(c.desc) doc.text(c.desc.substring(0,50), x0+40, y0+11);
-    // Título direito (espelhado)
-    doc.setFont('helvetica','bold'); doc.setFontSize(9);
-    doc.setTextColor(...AMARELO);
-    doc.text('CARTÃO BLOQUEADOR: SUZANO', midX+2, y0+5);
-    doc.setFontSize(14);
-    doc.text(c.nome, midX+2, y0+11);
-    doc.setFontSize(7); doc.setFont('helvetica','normal');
-    doc.setTextColor(220,232,250);
-    if(c.desc) doc.text(c.desc.substring(0,50), midX+40, y0+11);
-
-    const y1 = y0 + 13; // após cabeçalho
-
-    // ── LINHA DIVISÓRIA CENTRAL ───────────────────────────────
-    doc.setDrawColor(...CINZA_BORDA);
-    doc.setLineWidth(0.5);
-    doc.line(midX, y0, midX, y0 + HALF_H - MARGIN*2);
-
-    // ── LADO ESQUERDO: FONTES DE ENERGIA ─────────────────────
-    // Cabeçalho colunas lado esq
-    const colsE = [
-      {label:'TAG',        x:x0,        w:22},
-      {label:'FONTES DE ENERGIA', x:x0+22,  w:55},
-      {label:'Nº CARTÃO',  x:x0+77,     w:18},
-      {label:'B',          x:x0+95,     w:6},
-      {label:'D',          x:x0+101,    w:6},
-    ];
-    const xAcabE = x0 + ladoW;
-
-    doc.setFillColor(...CINZA_HEADER);
-    doc.rect(x0, y1, ladoW, 6, 'F');
-    doc.setFont('helvetica','bold'); doc.setFontSize(6);
+    doc.rect(M,M,PW-M*2,9,'F');
+    doc.setFont('helvetica','bold');doc.setFontSize(9);
+    doc.setTextColor(...AMLR);
+    doc.text(cab1.toUpperCase(),M+2,M+6.5);
+    // Faixa azul média com nº cartão + descrição
+    doc.setFillColor(15,35,160);
+    doc.rect(M,M+9,PW-M*2,10,'F');
+    doc.setFontSize(18);doc.setTextColor(255,255,255);
+    doc.text(c.nome,M+2,M+17);
+    doc.setFontSize(8);doc.setFont('helvetica','normal');
+    doc.setTextColor(210,225,255);
+    if(c.desc)doc.text(c.desc.substring(0,90),M+32,M+17,{maxWidth:PW-M*2-34});
     doc.setTextColor(...PRETO);
-    colsE.forEach(col=>{
-      doc.text(col.label, col.x+0.8, y1+4, {maxWidth:col.w-1});
-    });
-    doc.setDrawColor(...CINZA_BORDA);
-    doc.rect(x0, y1, ladoW, 6);
-
-    // Linhas de dados — fontes preenchidas + linhas em branco
-    const MIN_FONTES = 20; // mínimo de linhas para preenchimento manual
-    const fontesComBranco = [...c.fontes];
-    while(fontesComBranco.length < MIN_FONTES) fontesComBranco.push(null);
-
-    let yRow = y1 + 6;
-    doc.setFont('helvetica','normal'); doc.setFontSize(6.5);
-    fontesComBranco.forEach((f, i)=>{
-      const bg = i%2===0 ? [248,248,248] : BRANCO;
-      doc.setFillColor(...bg);
-      doc.rect(x0, yRow, ladoW, LINHA_H, 'F');
-      doc.setDrawColor(...CINZA_BORDA);
-      doc.rect(x0, yRow, ladoW, LINHA_H);
-      // Linhas divisórias das colunas
-      doc.line(x0+22, yRow, x0+22, yRow+LINHA_H);
-      doc.line(x0+77, yRow, x0+77, yRow+LINHA_H);
-      doc.line(x0+95, yRow, x0+95, yRow+LINHA_H);
-      doc.line(x0+101, yRow, x0+101, yRow+LINHA_H);
-      if(f){
-        doc.setTextColor(...PRETO);
-        doc.text((f.tag||'').substring(0,12),    x0+0.8, yRow+4.5, {maxWidth:20});
-        doc.text((f.desc||'').substring(0,35),   x0+22.8, yRow+4.5, {maxWidth:53});
-        doc.text((f.num||'').substring(0,10),    x0+77.8, yRow+4.5, {maxWidth:16});
-        // Checkboxes B e D
-        doc.setFontSize(7);
-        doc.text('□', x0+96.5, yRow+4.5);
-        doc.text('□', x0+102.5, yRow+4.5);
-        doc.setFontSize(6.5);
-      }
-      yRow += LINHA_H;
-    });
-
-    // Legenda lado esq
-    doc.setFont('helvetica','italic'); doc.setFontSize(5.5);
-    doc.setTextColor(80,80,80);
-    doc.text('B: Bloqueado e testado   D: Fonte liberada para desbloqueio', x0+1, yRow+3);
-
-    // ── LADO DIREITO: ATIVIDADES / LTs ───────────────────────
-    const colsD = [
-      {label:'TAG',              x:midX,        w:18},
-      {label:'DESC. ATIVIDADES EXTERNAS', x:midX+18, w:42},
-      {label:'Nº LT',            x:midX+60,     w:18},
-      {label:'EXEC. LÍDER',      x:midX+78,     w:14},
-      {label:'EMPRESA',          x:midX+92,     w:10},
-      {label:'A',                x:midX+102,    w:6},
-      {label:'E',                x:midX+ladoW-6,w:6},
-    ];
-
-    doc.setFillColor(...CINZA_HEADER);
-    doc.rect(midX, y1, ladoW, 6, 'F');
-    doc.setFont('helvetica','bold'); doc.setFontSize(6);
-    doc.setTextColor(...PRETO);
-    colsD.forEach(col=>{
-      doc.text(col.label, col.x+0.8, y1+4, {maxWidth:col.w-1});
-    });
-    doc.setDrawColor(...CINZA_BORDA);
-    doc.rect(midX, y1, ladoW, 6);
-
-    // Linhas — LTs preenchidas + linhas em branco
-    const MIN_LTS = 20;
-    const ltsComBranco = [...ltsCB];
-    while(ltsComBranco.length < MIN_LTS) ltsComBranco.push(null);
-
-    yRow = y1 + 6;
-    doc.setFont('helvetica','normal'); doc.setFontSize(6.5);
-    ltsComBranco.forEach((l, i)=>{
-      const bg = i%2===0 ? [248,248,248] : BRANCO;
-      doc.setFillColor(...bg);
-      doc.rect(midX, yRow, ladoW, LINHA_H, 'F');
-      doc.setDrawColor(...CINZA_BORDA);
-      doc.rect(midX, yRow, ladoW, LINHA_H);
-      // Linhas divisórias
-      doc.line(midX+18, yRow, midX+18, yRow+LINHA_H);
-      doc.line(midX+60, yRow, midX+60, yRow+LINHA_H);
-      doc.line(midX+78, yRow, midX+78, yRow+LINHA_H);
-      doc.line(midX+92, yRow, midX+92, yRow+LINHA_H);
-      doc.line(midX+102, yRow, midX+102, yRow+LINHA_H);
-      doc.line(midX+ladoW-6, yRow, midX+ladoW-6, yRow+LINHA_H);
-      if(l){
-        doc.setTextColor(...PRETO);
-        doc.text((l.tag||'').substring(0,10),    midX+0.8,  yRow+4.5, {maxWidth:17});
-        doc.text((l.equip||l.desc||'').substring(0,28), midX+18.8, yRow+4.5, {maxWidth:40});
-        doc.text((l.num||'').substring(0,12),    midX+60.8, yRow+4.5, {maxWidth:16});
-        doc.text((l.lider||'').substring(0,10),  midX+78.8, yRow+4.5, {maxWidth:13});
-        doc.text((l.empresa||'').substring(0,8), midX+92.8, yRow+4.5, {maxWidth:9});
-        doc.setFontSize(7);
-        doc.text('□', midX+103.5, yRow+4.5);
-        doc.text('□', midX+ladoW-5, yRow+4.5);
-        doc.setFontSize(6.5);
-      }
-      yRow += LINHA_H;
-    });
-
-    // Legenda lado dir
-    doc.setFont('helvetica','italic'); doc.setFontSize(5.5);
-    doc.setTextColor(80,80,80);
-    doc.text('A: LT autorizada   E: LT encerrada', midX+1, yRow+3);
-
-    // ── LINHA DE DOBRA ────────────────────────────────────────
-    if(!isVerso){
-      doc.setDrawColor(150,150,150);
-      doc.setLineWidth(0.3);
-      doc.setLineDash([2,2]);
-      doc.line(x0, offsetY+HALF_H, PW-MARGIN, offsetY+HALF_H);
-      doc.setLineDash([]);
-      doc.setFontSize(5); doc.setTextColor(150,150,150);
-      doc.text('— DOBRAR AQUI —', PW/2-12, offsetY+HALF_H-1);
-    }
   }
 
-  // ── PÁGINA 1: FRENTE (topo) + VERSO (baixo) ──────────────────
-  // Frente — lado com fontes e LTs
-  desenharCartao(0, false);
+  function drawTable(cols,rows,legenda){
+    const y0=M+21;
+    const totalW=PW-M*2;
+    const totP=cols.reduce((s,c)=>s+c.p,0);
+    let xA=M;
+    const C=cols.map(col=>{const w=(col.p/totP)*totalW;const o={...col,x:xA,w};xA+=w;return o;});
 
-  // Verso — mesma página, metade inferior (será impressa ao dobrar)
-  // No verso, o lado ESQ vira direito ao dobrar → invertemos visualmente
-  // Para impressão simples: segunda instância é duplicada (confirmação de bloqueio)
-  desenharCartao(HALF_H, true);
+    // Cabeçalho colunas
+    doc.setFillColor(...CZH);
+    doc.rect(M,y0,totalW,7,'F');
+    doc.setDrawColor(...CZB);doc.setLineWidth(0.25);
+    doc.rect(M,y0,totalW,7);
+    doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor(...PRETO);
+    C.forEach((col,i)=>{
+      doc.text(col.l,col.x+1,y0+5,{maxWidth:col.w-2});
+      if(i<C.length-1)doc.line(col.x+col.w,y0,col.x+col.w,y0+7);
+    });
 
-  // ── SALVAR / COMPARTILHAR ─────────────────────────────────────
-  const fname = `CartaoBloqueador_${c.nome}_${new Date().toISOString().slice(0,10)}.pdf`;
+    // Linhas dados + branco
+    const data=[...rows];
+    while(data.length<MIN_ROWS)data.push(null);
+    let yR=y0+7;
+    doc.setFont('helvetica','normal');doc.setFontSize(6.5);
+    data.forEach((row,i)=>{
+      doc.setFillColor(...(i%2===0?LIST:BRANCO));
+      doc.rect(M,yR,totalW,LH,'F');
+      doc.setDrawColor(...CZB);
+      doc.rect(M,yR,totalW,LH);
+      C.forEach((col,ci)=>{
+        if(ci<C.length-1)doc.line(col.x+col.w,yR,col.x+col.w,yR+LH);
+        if(row&&row[ci]!=null&&row[ci]!==''){
+          doc.setTextColor(...PRETO);
+          doc.text(String(row[ci]).substring(0,Math.ceil(col.w/1.8)),col.x+1,yR+5.2,{maxWidth:col.w-2});
+        }
+      });
+      yR+=LH;
+    });
+    // Legenda
+    doc.setFont('helvetica','italic');doc.setFontSize(5.5);doc.setTextColor(90,90,90);
+    doc.text(legenda,M+1,yR+4);
+  }
+
+  // ── PÁGINA 1: FONTES DE ENERGIA (colunas A–E) ────────────────
+  drawHeader();
+  drawTable(
+    [{l:'TAG',p:12},{l:'FONTES DE ENERGIA',p:55},{l:'Nº CARTÃO',p:15},{l:'B',p:4},{l:'D',p:4}],
+    c.fontes.map(f=>[f.tag||'',f.desc||'',f.num||'','','']),
+    'B: Bloqueado e testado    D: Fonte liberada para desbloqueio'
+  );
+
+  // ── PÁGINA 2: ATIVIDADES EXTERNAS / LTs (colunas F–M) ────────
+  doc.addPage();
+  drawHeader();
+  drawTable(
+    [{l:'TAG',p:10},{l:'DESCRIÇÃO DAS ATIVIDADES EXTERNAS',p:46},{l:'Nº LT',p:13},{l:'EXEC. LÍDER',p:14},{l:'EMPRESA',p:12},{l:'A',p:4},{l:'E',p:4}],
+    ltsCB.map(l=>[l.tag||'',l.desc||l.equip||'',l.num||'',l.lider||'',l.empresa||'','','']),
+    'A: LT autorizada    E: LT encerrada'
+  );
+
+  // ── SALVAR ────────────────────────────────────────────────────
+  const fname=`CartaoBloqueador_${c.nome}_${new Date().toISOString().slice(0,10)}.pdf`;
   try{
     if(navigator.share&&navigator.canShare){
       const blob=doc.output('blob');
       const file=new File([blob],fname,{type:'application/pdf'});
       if(navigator.canShare({files:[file]})){
-        await navigator.share({files:[file],title:'Cartão Bloqueador '+c.nome,text:c.desc||''});
-        toast('✔ PDF compartilhado!'); return;
+        await navigator.share({files:[file],title:'Cartão Bloqueador '+c.nome});
+        toast('✔ PDF compartilhado!');return;
       }
     }
-    doc.save(fname); toast('✔ PDF salvo! Verifique Downloads.');
-  }catch(err){ if(err.name!=='AbortError') toast('⚠️ Erro: '+err.message,'err'); }
+    doc.save(fname);toast('✔ PDF salvo! Página 1=Fontes, Página 2=Atividades');
+  }catch(err){if(err.name!=='AbortError')toast('⚠️ Erro: '+err.message,'err');}
 }
 
-// Extender executarAcaoSenha para ações de CB
-const _execAcaoOriginal = executarAcaoSenha;
-function executarAcaoSenha(acao, id){
-  if(acao==='cbAddFonte'){ abrirModalFonte(getCB()?.id, null); }
-  else if(acao==='cbFonteEdit'){
-    const [cbId, idx] = id.split('_'); 
-    const realIdx = parseInt(id.split('_').pop());
-    const realCbId = id.substring(0, id.lastIndexOf('_'));
-    abrirModalFonte(realCbId, realIdx);
-  }
-  else if(acao==='cbFonteDel'){
-    const parts = id.split('_');
-    const idx = parseInt(parts.pop());
-    const cbId = parts.join('_');
-    deletarFonte(cbId, idx);
-  }
-  else if(acao==='cbDel'){ deletarCB(); }
-  else { _execAcaoOriginal(acao, id); }
-}
+
 
 // ═══ BACKUP ═══════════════════════════════════════════════════════
 function saveBackup(){
