@@ -1948,63 +1948,228 @@ function importarCBExcel(e){
 // PDF do cartão
 async function compartilharCBPDF(){
   const c = getCB(); if(!c) return;
-  if(typeof jspdf==='undefined'||!window.jspdf){ toast('⚠️ jsPDF não carregado','err'); return; }
+  if(!window.jspdf){ toast('⚠️ jsPDF não carregado','err'); return; }
   const {jsPDF} = window.jspdf;
-  const doc = new jsPDF({orientation:'landscape', unit:'mm', format:'a4'});
-  // Header
-  doc.setFillColor(25,50,200); doc.rect(0,0,297,18,'F');
-  doc.setTextColor(200,145,15); doc.setFont('helvetica','bold'); doc.setFontSize(14);
-  doc.text(`CARTÃO BLOQUEADOR · ${c.nome}`,14,12);
-  doc.setTextColor(220,232,250); doc.setFont('helvetica','normal'); doc.setFontSize(9);
-  doc.text(c.desc||'', 14, 17);
-  doc.setFontSize(8);
-  doc.text(`Gerado: ${new Date().toLocaleString('pt-BR')}`, 220, 12);
 
-  // Coletar LTs
+  // Coletar LTs vinculadas
   const ltsCB = LTS.filter(l=>{
     const cb=(l.cartao||'').trim().toUpperCase();
     const nome=c.nome.trim().toUpperCase();
     return cb===nome||cb===nome.replace(/^CB0*/,'CB');
   });
 
-  // Lado esquerdo — Fontes de Energia
-  doc.autoTable({
-    startY:22, margin:{left:10, right:152},
-    styles:{fontSize:7,cellPadding:2,textColor:[220,236,255],fillColor:[20,28,43]},
-    headStyles:{fillColor:[25,50,200],textColor:[200,145,15],fontStyle:'bold'},
-    alternateRowStyles:{fillColor:[25,35,58]},
-    head:[['TAG','FONTE DE ENERGIA','Nº CARTÃO','B','D']],
-    body: c.fontes.map(f=>[f.tag||'',f.desc||'',f.num||'','□','□']),
-    foot:[['B: Bloqueado e testado   D: Fonte liberada para desbloqueio']],
-    footStyles:{fontSize:6,textColor:[150,160,180],fillColor:[20,28,43]},
-    columnStyles:{3:{halign:'center',cellWidth:8},4:{halign:'center',cellWidth:8}}
-  });
+  // ── CONFIGURAÇÕES DE LAYOUT ────────────────────────────────────
+  // A4 retrato: 210 x 297mm
+  // O cartão ocupa metade da folha (frente) = 210 x 148mm
+  // Verso = outra metade (dobrado)
+  // Cada lado (esq/dir) = metade da largura = ~101mm
+  const doc = new jsPDF({orientation:'portrait', unit:'mm', format:'a4'});
+  const PW = 210, PH = 297;
+  const HALF_H = PH / 2; // 148.5mm — linha de dobra
+  const MARGIN = 4;
+  const MID = PW / 2; // 105mm — divisória central
+  const LINHA_H = 7; // altura de cada linha de dados
 
-  // Lado direito — Atividades/LTs
-  doc.autoTable({
-    startY:22, margin:{left:150, right:10},
-    styles:{fontSize:7,cellPadding:2,textColor:[220,236,255],fillColor:[20,28,43]},
-    headStyles:{fillColor:[25,50,200],textColor:[200,145,15],fontStyle:'bold'},
-    alternateRowStyles:{fillColor:[25,35,58]},
-    head:[['Nº LT','DESCRIÇÃO DA ATIVIDADE','EXEC./LÍDER','EMPRESA','A','E']],
-    body: ltsCB.length ? ltsCB.map(l=>[l.num,l.equip||l.desc||'',l.lider||'',l.empresa||'','□','□'])
-                       : [['—','Nenhuma LT vinculada','','','','']],
-    foot:[['E: LT encerrada']],
-    footStyles:{fontSize:6,textColor:[150,160,180],fillColor:[20,28,43]},
-    columnStyles:{4:{halign:'center',cellWidth:8},5:{halign:'center',cellWidth:8}}
-  });
+  // Cores
+  const AZUL = [25, 50, 200];
+  const AMARELO = [200, 145, 15];
+  const PRETO = [0, 0, 0];
+  const CINZA_BORDA = [180, 180, 180];
+  const CINZA_HEADER = [230, 230, 230];
+  const BRANCO = [255, 255, 255];
 
+  // ── FUNÇÃO AUXILIAR: desenhar um cartão ───────────────────────
+  // offsetY = 0 para frente (topo), HALF_H para verso (baixo)
+  function desenharCartao(offsetY, isVerso){
+    const x0 = MARGIN;
+    const y0 = offsetY + MARGIN;
+    const totW = PW - MARGIN*2;
+    const midX = x0 + totW/2;
+    const ladoW = totW/2 - 1;
+
+    // ── CABEÇALHO ─────────────────────────────────────────────
+    // Fundo azul
+    doc.setFillColor(...AZUL);
+    doc.rect(x0, y0, totW, 12, 'F');
+    // Título esquerdo
+    doc.setFont('helvetica','bold'); doc.setFontSize(9);
+    doc.setTextColor(...AMARELO);
+    doc.text('CARTÃO BLOQUEADOR: SUZANO', x0+2, y0+5);
+    doc.setFontSize(14);
+    doc.text(c.nome, x0+2, y0+11);
+    // Descrição equipamento
+    doc.setFontSize(7); doc.setFont('helvetica','normal');
+    doc.setTextColor(220,232,250);
+    if(c.desc) doc.text(c.desc.substring(0,50), x0+40, y0+11);
+    // Título direito (espelhado)
+    doc.setFont('helvetica','bold'); doc.setFontSize(9);
+    doc.setTextColor(...AMARELO);
+    doc.text('CARTÃO BLOQUEADOR: SUZANO', midX+2, y0+5);
+    doc.setFontSize(14);
+    doc.text(c.nome, midX+2, y0+11);
+    doc.setFontSize(7); doc.setFont('helvetica','normal');
+    doc.setTextColor(220,232,250);
+    if(c.desc) doc.text(c.desc.substring(0,50), midX+40, y0+11);
+
+    const y1 = y0 + 13; // após cabeçalho
+
+    // ── LINHA DIVISÓRIA CENTRAL ───────────────────────────────
+    doc.setDrawColor(...CINZA_BORDA);
+    doc.setLineWidth(0.5);
+    doc.line(midX, y0, midX, y0 + HALF_H - MARGIN*2);
+
+    // ── LADO ESQUERDO: FONTES DE ENERGIA ─────────────────────
+    // Cabeçalho colunas lado esq
+    const colsE = [
+      {label:'TAG',        x:x0,        w:22},
+      {label:'FONTES DE ENERGIA', x:x0+22,  w:55},
+      {label:'Nº CARTÃO',  x:x0+77,     w:18},
+      {label:'B',          x:x0+95,     w:6},
+      {label:'D',          x:x0+101,    w:6},
+    ];
+    const xAcabE = x0 + ladoW;
+
+    doc.setFillColor(...CINZA_HEADER);
+    doc.rect(x0, y1, ladoW, 6, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(6);
+    doc.setTextColor(...PRETO);
+    colsE.forEach(col=>{
+      doc.text(col.label, col.x+0.8, y1+4, {maxWidth:col.w-1});
+    });
+    doc.setDrawColor(...CINZA_BORDA);
+    doc.rect(x0, y1, ladoW, 6);
+
+    // Linhas de dados — fontes preenchidas + linhas em branco
+    const MIN_FONTES = 20; // mínimo de linhas para preenchimento manual
+    const fontesComBranco = [...c.fontes];
+    while(fontesComBranco.length < MIN_FONTES) fontesComBranco.push(null);
+
+    let yRow = y1 + 6;
+    doc.setFont('helvetica','normal'); doc.setFontSize(6.5);
+    fontesComBranco.forEach((f, i)=>{
+      const bg = i%2===0 ? [248,248,248] : BRANCO;
+      doc.setFillColor(...bg);
+      doc.rect(x0, yRow, ladoW, LINHA_H, 'F');
+      doc.setDrawColor(...CINZA_BORDA);
+      doc.rect(x0, yRow, ladoW, LINHA_H);
+      // Linhas divisórias das colunas
+      doc.line(x0+22, yRow, x0+22, yRow+LINHA_H);
+      doc.line(x0+77, yRow, x0+77, yRow+LINHA_H);
+      doc.line(x0+95, yRow, x0+95, yRow+LINHA_H);
+      doc.line(x0+101, yRow, x0+101, yRow+LINHA_H);
+      if(f){
+        doc.setTextColor(...PRETO);
+        doc.text((f.tag||'').substring(0,12),    x0+0.8, yRow+4.5, {maxWidth:20});
+        doc.text((f.desc||'').substring(0,35),   x0+22.8, yRow+4.5, {maxWidth:53});
+        doc.text((f.num||'').substring(0,10),    x0+77.8, yRow+4.5, {maxWidth:16});
+        // Checkboxes B e D
+        doc.setFontSize(7);
+        doc.text('□', x0+96.5, yRow+4.5);
+        doc.text('□', x0+102.5, yRow+4.5);
+        doc.setFontSize(6.5);
+      }
+      yRow += LINHA_H;
+    });
+
+    // Legenda lado esq
+    doc.setFont('helvetica','italic'); doc.setFontSize(5.5);
+    doc.setTextColor(80,80,80);
+    doc.text('B: Bloqueado e testado   D: Fonte liberada para desbloqueio', x0+1, yRow+3);
+
+    // ── LADO DIREITO: ATIVIDADES / LTs ───────────────────────
+    const colsD = [
+      {label:'TAG',              x:midX,        w:18},
+      {label:'DESC. ATIVIDADES EXTERNAS', x:midX+18, w:42},
+      {label:'Nº LT',            x:midX+60,     w:18},
+      {label:'EXEC. LÍDER',      x:midX+78,     w:14},
+      {label:'EMPRESA',          x:midX+92,     w:10},
+      {label:'A',                x:midX+102,    w:6},
+      {label:'E',                x:midX+ladoW-6,w:6},
+    ];
+
+    doc.setFillColor(...CINZA_HEADER);
+    doc.rect(midX, y1, ladoW, 6, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(6);
+    doc.setTextColor(...PRETO);
+    colsD.forEach(col=>{
+      doc.text(col.label, col.x+0.8, y1+4, {maxWidth:col.w-1});
+    });
+    doc.setDrawColor(...CINZA_BORDA);
+    doc.rect(midX, y1, ladoW, 6);
+
+    // Linhas — LTs preenchidas + linhas em branco
+    const MIN_LTS = 20;
+    const ltsComBranco = [...ltsCB];
+    while(ltsComBranco.length < MIN_LTS) ltsComBranco.push(null);
+
+    yRow = y1 + 6;
+    doc.setFont('helvetica','normal'); doc.setFontSize(6.5);
+    ltsComBranco.forEach((l, i)=>{
+      const bg = i%2===0 ? [248,248,248] : BRANCO;
+      doc.setFillColor(...bg);
+      doc.rect(midX, yRow, ladoW, LINHA_H, 'F');
+      doc.setDrawColor(...CINZA_BORDA);
+      doc.rect(midX, yRow, ladoW, LINHA_H);
+      // Linhas divisórias
+      doc.line(midX+18, yRow, midX+18, yRow+LINHA_H);
+      doc.line(midX+60, yRow, midX+60, yRow+LINHA_H);
+      doc.line(midX+78, yRow, midX+78, yRow+LINHA_H);
+      doc.line(midX+92, yRow, midX+92, yRow+LINHA_H);
+      doc.line(midX+102, yRow, midX+102, yRow+LINHA_H);
+      doc.line(midX+ladoW-6, yRow, midX+ladoW-6, yRow+LINHA_H);
+      if(l){
+        doc.setTextColor(...PRETO);
+        doc.text((l.tag||'').substring(0,10),    midX+0.8,  yRow+4.5, {maxWidth:17});
+        doc.text((l.equip||l.desc||'').substring(0,28), midX+18.8, yRow+4.5, {maxWidth:40});
+        doc.text((l.num||'').substring(0,12),    midX+60.8, yRow+4.5, {maxWidth:16});
+        doc.text((l.lider||'').substring(0,10),  midX+78.8, yRow+4.5, {maxWidth:13});
+        doc.text((l.empresa||'').substring(0,8), midX+92.8, yRow+4.5, {maxWidth:9});
+        doc.setFontSize(7);
+        doc.text('□', midX+103.5, yRow+4.5);
+        doc.text('□', midX+ladoW-5, yRow+4.5);
+        doc.setFontSize(6.5);
+      }
+      yRow += LINHA_H;
+    });
+
+    // Legenda lado dir
+    doc.setFont('helvetica','italic'); doc.setFontSize(5.5);
+    doc.setTextColor(80,80,80);
+    doc.text('A: LT autorizada   E: LT encerrada', midX+1, yRow+3);
+
+    // ── LINHA DE DOBRA ────────────────────────────────────────
+    if(!isVerso){
+      doc.setDrawColor(150,150,150);
+      doc.setLineWidth(0.3);
+      doc.setLineDash([2,2]);
+      doc.line(x0, offsetY+HALF_H, PW-MARGIN, offsetY+HALF_H);
+      doc.setLineDash([]);
+      doc.setFontSize(5); doc.setTextColor(150,150,150);
+      doc.text('— DOBRAR AQUI —', PW/2-12, offsetY+HALF_H-1);
+    }
+  }
+
+  // ── PÁGINA 1: FRENTE (topo) + VERSO (baixo) ──────────────────
+  // Frente — lado com fontes e LTs
+  desenharCartao(0, false);
+
+  // Verso — mesma página, metade inferior (será impressa ao dobrar)
+  // No verso, o lado ESQ vira direito ao dobrar → invertemos visualmente
+  // Para impressão simples: segunda instância é duplicada (confirmação de bloqueio)
+  desenharCartao(HALF_H, true);
+
+  // ── SALVAR / COMPARTILHAR ─────────────────────────────────────
   const fname = `CartaoBloqueador_${c.nome}_${new Date().toISOString().slice(0,10)}.pdf`;
   try{
     if(navigator.share&&navigator.canShare){
       const blob=doc.output('blob');
       const file=new File([blob],fname,{type:'application/pdf'});
       if(navigator.canShare({files:[file]})){
-        await navigator.share({files:[file],title:'Cartão Bloqueador '+c.nome});
+        await navigator.share({files:[file],title:'Cartão Bloqueador '+c.nome,text:c.desc||''});
         toast('✔ PDF compartilhado!'); return;
       }
     }
-    doc.save(fname); toast('✔ PDF salvo!');
+    doc.save(fname); toast('✔ PDF salvo! Verifique Downloads.');
   }catch(err){ if(err.name!=='AbortError') toast('⚠️ Erro: '+err.message,'err'); }
 }
 
