@@ -348,7 +348,7 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
   <div id="astrip"></div>
   <div class="st">Por Disciplina</div>
   <div class="dg" id="dgrid"></div>
-  <div class="st">Pendentes / Em Execução — Prioridade</div>
+  <div class="st">Não Iniciadas / Em Execução — Prioridade</div>
   <div class="tw"><table><thead><tr>
     <th>Nº LT</th><th>OS</th><th>Disciplina</th><th>Equipamento</th>
     <th>Empresa</th><th>Líder</th><th>Status</th><th>Término</th>
@@ -402,7 +402,7 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
       <div class="fi"><label>Responsável / Supervisor</label><input id="fresp" placeholder="Nome do responsável"></div>
       <div class="fi"><label>Status</label>
         <select id="fstatus">
-          <option value="P">🟠 Pendente</option><option value="E">🔵 Em Execução</option>
+          <option value="P">🟠 Não Iniciado</option><option value="E">🔵 Em Execução</option>
           <option value="C">🟢 Concluída</option><option value="X">⚫ Cancelada</option>
         </select>
       </div>
@@ -427,7 +427,7 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
     <select id="fdisc2" onchange="rLista()"><option value="">Todas as disciplinas</option></select>
     <select id="fsts" onchange="rLista()">
       <option value="">Todos os status</option>
-      <option value="P">Pendente</option><option value="E">Em Execução</option>
+      <option value="P">Não Iniciado</option><option value="E">Em Execução</option>
       <option value="C">Concluída</option><option value="X">Cancelada</option>
     </select>
     <select id="fpri" onchange="rLista()">
@@ -496,7 +496,7 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
   <div class="st">Por Disciplina</div>
   <div class="rg" id="rgrid"></div>
   <div class="st">
-    <span id="rtitle">Relatório de LTs — Pendentes &amp; Em Execução</span>
+    <span id="rtitle">Relatório de LTs — Não Iniciadas &amp; Em Execução</span>
     <div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap">
       <div style="position:relative">
         <button onclick="toggleAreaDrop('rel')"
@@ -599,7 +599,7 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
       <select id="cfsit" onchange="rCrono()">
         <option value="">Todas as situações</option>
         <option value="alarm">🔴 Sem LT / Atrasado</option>
-        <option value="pend">🟠 LT Pendente</option>
+        <option value="pend">🟠 LT Não Iniciada</option>
         <option value="exec">🔵 Em Execução</option>
         <option value="ok">✅ Concluído</option>
         <option value="wait">⏳ Aguardando</option>
@@ -625,7 +625,7 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
       <div class="fi"><label>Nº LT</label><input id="mnum" readonly style="opacity:.5"></div>
       <div class="fi"><label>Novo Status</label>
         <select id="mstssel">
-          <option value="P">🟠 Pendente</option><option value="E">🔵 Em Execução</option>
+          <option value="P">🟠 Não Iniciado</option><option value="E">🔵 Em Execução</option>
           <option value="C">🟢 Concluída</option><option value="X">⚫ Cancelada</option>
         </select>
       </div>
@@ -711,7 +711,7 @@ function syncBar(on){
 
 // ═══ HELPERS ═════════════════════════════════════════════════════
 function dn(id){return DISC.find(d=>d.id===id)||{n:id||'—'};}
-function stl(s){return{P:'Não iniciado',E:'Em Execução',C:'Concluída',X:'Cancelada'}[s]||s;}
+function stl(s){return{P:'Não Iniciado',E:'Em Execução',C:'Concluída',X:'Cancelada'}[s]||s;}
 function fdt(dt){
   if(!dt)return'—';
   try{const d=new Date(dt);if(isNaN(d))return String(dt);
@@ -765,13 +765,13 @@ function csit(c){
   if(lk.status==='C')return{code:'ok',lbl:'✅ Concluído',cls:'sit-ok'};
   if(lk.status==='X')return{code:'ok',lbl:'⚫ Cancelado',cls:'sit-wait'};
   if(lk.status==='E')return en?{code:'alarm',lbl:'🔴 Em exec. — prazo esgotado',cls:'sit-alarm'}:{code:'exec',lbl:'🔵 Em Execução',cls:'sit-exec'};
-  return en?{code:'alarm',lbl:'🔴 LT pend. — prazo esgotado',cls:'sit-alarm'}:{code:'pend',lbl:'🟠 LT Pendente',cls:'sit-pend'};
+  return en?{code:'alarm',lbl:'🔴 LT não inic. — prazo esgotado',cls:'sit-alarm'}:{code:'pend',lbl:'🟠 LT Não Iniciada',cls:'sit-pend'};
 }
 function getAlarms(){
   const al=[];
   LTS.forEach(l=>{
     if(ovd(l))al.push({t:'R',l,m:'Término ultrapassado — '+l.equip});
-    else if(late(l))al.push({t:'O',l,m:'Início passou e ainda Pendente — '+l.equip});
+    else if(late(l))al.push({t:'O',l,m:'Início passou e ainda Não Iniciada — '+l.equip});
   });
   CRONOS.forEach(c=>{
     if(csit(c).code==='alarm')al.push({t:'B',c,lk:ltForC(c),m:csit(c).lbl+': "'+c.desc.substring(0,45)+'"'});
@@ -826,7 +826,7 @@ function rPainel(){
     atrs=base.filter(ovd).length,perc=tot?Math.round(conc/tot*100):0;
   const ks=[
     {l:'Total LTs',v:tot,s:painelArea||'cadastradas',c:'#1932c8',f:''},
-    {l:'Pendentes',v:pend,s:'aguardando',c:'#c85f0f',f:'P'},
+    {l:'Não Iniciadas',v:pend,s:'aguardando',c:'#c85f0f',f:'P'},
     {l:'Em Execução',v:exec,s:'em andamento',c:'#1932c8',f:'E'},
     {l:'Concluídas',v:conc,s:'finalizadas',c:'#00c85a',f:'C'},
     {l:'Canceladas',v:canc,s:'descartadas',c:'#aeab9e',f:'X'},
@@ -855,7 +855,7 @@ function rPainel(){
   const rows=base.filter(l=>l.status==='P'||l.status==='E')
     .sort((a,b)=>{const o={Crítica:0,Alta:1,Normal:2};return(o[a.prio]??2)-(o[b.prio]??2)}).slice(0,12);
   const tb=document.getElementById('ptb');
-  if(!rows.length){tb.innerHTML=`<tr><td colspan="8"><div class="es"><div class="ei">✅</div><p>Nenhuma LT pendente!</p></div></td></tr>`;return;}
+  if(!rows.length){tb.innerHTML=`<tr><td colspan="8"><div class="es"><div class="ei">✅</div><p>Nenhuma LT não iniciada!</p></div></td></tr>`;return;}
   tb.innerHTML=rows.map(l=>{const od=ovd(l);return`<tr class="${od?'ra':''}">
     <td class="ln">${l.num}${od?' 🔴':''}</td><td class="sc">${l.os||'—'}</td>
     <td>${dspan(l.disc)}</td><td class="hi">${l.equip}</td>
@@ -930,7 +930,7 @@ function resetAreaFilt(ctx){
 
 // ═══ SENHA DE EDIÇÃO ══════════════════════════════════════════════
 // Altere a senha abaixo conforme necessário
-const SENHA_EDIT='pg26';
+const SENHA_EDIT='Suzano@2026';
 let _senhaAcao=null,_senhaId=null,_senhaExpira=0;
 
 function isSenhaOk(){return Date.now()<_senhaExpira;}
@@ -1032,7 +1032,7 @@ function salvarLT(){
   const status=document.getElementById('fstatus').value;
   const inicio=document.getElementById('finicio').value;
   const fim=document.getElementById('ffim').value;
-  if(!num||!disc||!equip||!empresa||!lider){toast('⚠️ Preencha os campos obrigatórios!','err');return;}
+  if(!num||!disc||!equip){toast('⚠️ Preencha os campos obrigatórios: LT, Disciplina e Equipamento!','err');return;}
   if(inicio&&fim&&new Date(fim)<=new Date(inicio)){toast('⚠️ Término deve ser após o início!','err');return;}
   if(!editId){
     const dup=LTS.find(l=>l.num===num);
@@ -1203,7 +1203,7 @@ function rRel(){
     canc=LTS.filter(l=>l.status==='X').length;
   document.getElementById('rkstrip').innerHTML=[
     {l:'Total',v:tot,c:'#1932c8',f:null,all:true},
-    {l:'Pendentes',v:pend,c:'#c85f0f',f:'P'},
+    {l:'Não Iniciadas',v:pend,c:'#c85f0f',f:'P'},
     {l:'Execução',v:exec,c:'#1932c8',f:'E'},
     {l:'Concluídas',v:conc,c:'#00c85a',f:'C'},
     {l:'Canceladas',v:canc,c:'#aeab9e',f:'X'},
@@ -1219,7 +1219,7 @@ function rRel(){
     return`<div class="rc"><div class="rch" style="color:${cor}">${d.n}
       <span style="margin-left:auto;color:var(--muted);font-size:10px">${dl.length} LTs</span></div>
       <div class="rb">
-        ${[{l:'Pendentes',v:dp,c:'#c85f0f'},{l:'Execução',v:de,c:'#1932c8'},
+        ${[{l:'Não Inic.',v:dp,c:'#c85f0f'},{l:'Execução',v:de,c:'#1932c8'},
            {l:'Concluídas',v:dc,c:'#00c85a'},{l:'Canceladas',v:da,c:'#aeab9e'}].map(r=>
           `<div class="br"><div class="brl">${r.l}</div>
             <div class="brt"><div class="brf" style="width:${(r.v/t*100).toFixed(0)}%;background:${r.c}"></div></div>
@@ -1237,7 +1237,7 @@ function rRel(){
     tit.textContent=`Relatório de LTs — ${stl(relF)}${areaLabel} (${rows.length})`;clr.style.display='inline-flex';
   } else {
     rows=LTS.filter(l=>(l.status==='P'||l.status==='E')&&areaFilt(l)&&blqFilt(l)).sort(sortPrio);
-    tit.textContent='Relatório de LTs — Pendentes & Em Execução'+areaLabel;clr.style.display=areas.length||rblqVal?'inline-flex':'none';
+    tit.textContent='Relatório de LTs — Não Iniciadas & Em Execução'+areaLabel;clr.style.display=areas.length||rblqVal?'inline-flex':'none';
   }
   const tb=document.getElementById('rtb');
   if(!rows.length){tb.innerHTML=`<tr><td colspan="13" style="text-align:center;padding:22px;color:var(--muted)">Nenhuma LT neste filtro.</td></tr>`;return;}
@@ -1331,7 +1331,7 @@ function csitT(c){
   if(todos)return{code:'ok',lbl:'✅ Concluído'};
   if(algumCanc)return{code:'ok',lbl:'⚫ Cancelado'};
   if(algumExec)return en?{code:'alarm',lbl:'🔴 Em exec. — prazo esgotado'}:{code:'exec',lbl:'🔵 Em Execução'};
-  return en?{code:'alarm',lbl:'🔴 LT pend. — prazo esgotado'}:{code:'pend',lbl:'🟠 LT Pendente'};
+  return en?{code:'alarm',lbl:'🔴 LT não inic. — prazo esgotado'}:{code:'pend',lbl:'🟠 LT Não Iniciada'};
 }
 function csit(c){return csitT(c);}
 function showCMeta(){
@@ -1524,7 +1524,7 @@ function buildPDF(rows,title){
   doc.text(`Gerado: ${new Date().toLocaleString('pt-BR')} | ${title}`,14,22);
   doc.setTextColor(200,145,15);doc.setFont('helvetica','bold');doc.setFontSize(8);
   const tot=LTS.length,pend=LTS.filter(l=>l.status==='P').length,exec=LTS.filter(l=>l.status==='E').length,conc=LTS.filter(l=>l.status==='C').length;
-  doc.text(`Total: ${tot}  |  Pendentes: ${pend}  |  Execução: ${exec}  |  Concluídas: ${conc}`,14,29);
+  doc.text(`Total: ${tot}  |  Não Iniciadas: ${pend}  |  Execução: ${exec}  |  Concluídas: ${conc}`,14,29);
   doc.autoTable({startY:33,
     styles:{fontSize:7,cellPadding:2,textColor:[220,236,255],fillColor:[20,28,43]},
     headStyles:{fillColor:[25,50,200],textColor:[200,145,15],fontStyle:'bold'},
@@ -1533,7 +1533,7 @@ function buildPDF(rows,title){
     body:rows.map(l=>[l.num,l.os||'—',l.cartao||'—',l.ctrab||'—',dn(l.disc).n,
       l.equip,l.empresa||'—',l.lider||'—',l.resp||'—',l.prio||'Normal',stl(l.status),fdt(l.inicio),fdt(l.fim)]),
     didParseCell:(d)=>{if(d.section==='body'){
-      if(d.column.index===9){if(d.cell.raw==='Pendente')d.cell.styles.textColor=[200,95,15];
+      if(d.column.index===9){if(d.cell.raw==='Não Iniciado')d.cell.styles.textColor=[200,95,15];
         if(d.cell.raw==='Em Execução')d.cell.styles.textColor=[25,50,200];
         if(d.cell.raw==='Concluída')d.cell.styles.textColor=[0,200,90];}
       if(d.column.index===8){if(d.cell.raw==='Crítica')d.cell.styles.textColor=[180,75,90];
@@ -1557,7 +1557,7 @@ function buildPDF(rows,title){
       }),
       didParseCell:(d)=>{if(d.section==='body'&&d.column.index===6){const v=d.cell.raw;
         if(v.includes('Sem LT')||v.includes('esgotado'))d.cell.styles.textColor=[180,75,90];
-        else if(v.includes('Pendente'))d.cell.styles.textColor=[200,95,15];
+        else if(v.includes('Não Inic'))d.cell.styles.textColor=[200,95,15];
         else if(v.includes('Execução'))d.cell.styles.textColor=[25,50,200];
         else if(v.includes('Concluído'))d.cell.styles.textColor=[0,200,90];
       }}
@@ -1578,13 +1578,13 @@ async function _share(rows,title){
 }
 function sharePDF(){
   const rows=LTS.filter(l=>l.status==='P'||l.status==='E').sort((a,b)=>{const o={Crítica:0,Alta:1,Normal:2};return(o[a.prio]??2)-(o[b.prio]??2)});
-  _share(rows,'Pendentes e Em Execução');
+  _share(rows,'Não Iniciadas e Em Execução');
 }
 function shareRelPDF(){
   let rows;
   if(relF)rows=LTS.filter(l=>l.status===relF).sort((a,b)=>{const o={Crítica:0,Alta:1,Normal:2};return(o[a.prio]??2)-(o[b.prio]??2)});
   else rows=LTS.filter(l=>l.status==='P'||l.status==='E').sort((a,b)=>{const o={Crítica:0,Alta:1,Normal:2};return(o[a.prio]??2)-(o[b.prio]??2)});
-  _share(rows,relF?stl(relF):'Pendentes e Em Execução');
+  _share(rows,relF?stl(relF):'Não Iniciadas e Em Execução');
 }
 function shareListPDF(){_share(getSorted(getFilt()),'Lista Filtrada');}
 
