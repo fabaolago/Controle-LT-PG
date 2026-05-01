@@ -1966,116 +1966,134 @@ async function compartilharCBPDF(){
   if(!window.jspdf){toast('⚠️ jsPDF não carregado','err');return;}
   const {jsPDF}=window.jspdf;
 
-  // LTs vinculadas a este cartão
+  // LTs vinculadas — busca TAG no cronograma pela OS
   const ltsCB=LTS.filter(l=>{
     const cb=(l.cartao||'').trim().toUpperCase();
-    const nome=c.nome.trim().toUpperCase();
-    return cb===nome||cb===nome.replace(/^CB0*/,'CB');
+    const nm=c.nome.trim().toUpperCase();
+    return cb===nm||cb===nm.replace(/^CB0*/,'CB');
+  }).map(l=>{
+    let tag=l.tag||'';
+    if(!tag&&l.os){
+      for(const cr of CRONOS_LIST){
+        const t=(cr.tarefas||[]).find(t=>t.os&&t.os.trim().toUpperCase()===l.os.trim().toUpperCase());
+        if(t&&t.tag){tag=t.tag;break;}
+      }
+    }
+    return {...l,_tag:tag};
   });
 
-  // A4 landscape: 297 x 210mm
   const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
-  // Metadados para impressão correta
-  doc.setProperties({title:'Cartão Bloqueador '+c.nome,subject:c.desc||'',creator:'Controle LT Suzano'});
+  doc.setProperties({title:'Cartao Bloqueador '+c.nome,subject:c.desc||'',creator:'Controle LT Suzano'});
 
-  const PW=297,PH=210,M=6,LH=7.5,MIN_ROWS=20;
-  const AZUL=[25,50,200],AMLR=[200,145,15],PRETO=[0,0,0];
-  const CZH=[215,215,215],CZB=[150,150,150],BRANCO=[255,255,255],LIST=[246,246,250];
-
-  // Linha 1 do cabeçalho: "CARTÃO BLOQUEADOR: DDW"
-  const cab1 = c.desc ? 'CARTÃO BLOQUEADOR: '+c.desc.split(/[\s\-]/)[0] : 'CARTÃO BLOQUEADOR';
+  const PW=297,M=6,LH=8,MIN_ROWS=20;
+  const PRETO=[0,0,0],AZUL=[25,50,200],CINZA=[215,215,215],BORDA=[150,150,150],
+        BRANCO=[255,255,255],LIST=[246,246,250];
 
   function drawHeader(){
-    // Faixa azul escura
-    doc.setFillColor(...AZUL);
-    doc.rect(M,M,PW-M*2,9,'F');
-    doc.setFont('helvetica','bold');doc.setFontSize(9);
-    doc.setTextColor(...AMLR);
-    doc.text(cab1.toUpperCase(),M+2,M+6.5);
-    // Faixa azul média com nº cartão + descrição
-    doc.setFillColor(15,35,160);
-    doc.rect(M,M+9,PW-M*2,10,'F');
-    doc.setFontSize(18);doc.setTextColor(255,255,255);
-    doc.text(c.nome,M+2,M+17);
-    doc.setFontSize(8);doc.setFont('helvetica','normal');
-    doc.setTextColor(210,225,255);
-    if(c.desc)doc.text(c.desc.substring(0,90),M+32,M+17,{maxWidth:PW-M*2-34});
+    const w=PW-M*2;
+    // Fundo branco com borda
+    doc.setFillColor(255,255,255);
+    doc.rect(M,M,w,22,'F');
+    doc.setDrawColor(...BORDA);doc.setLineWidth(0.5);
+    doc.rect(M,M,w,22);
+
+    // LINHA 1: titulo centralizado + CB01 obrigatorio a direita
+    const titulo=c.desc
+      ? 'CARTAO BLOQUEADOR: '+c.desc.trim().split(/[\s\-]/)[0].toUpperCase()
+      : 'CARTAO BLOQUEADOR: SUZANO';
+    doc.setFont('helvetica','bold');doc.setFontSize(11);
     doc.setTextColor(...PRETO);
+    doc.text(titulo, PW/2, M+8, {align:'center'});
+
+    // CB01 destaque obrigatorio canto direito
+    doc.setFont('helvetica','bold');doc.setFontSize(22);
+    doc.setTextColor(...AZUL);
+    doc.text(c.nome, M+w-2, M+9, {align:'right'});
+
+    // Linha separadora
+    doc.setDrawColor(...BORDA);doc.setLineWidth(0.3);
+    doc.line(M, M+11, M+w, M+11);
+
+    // LINHA 2: descricao grande (ex: 325LR504 -DDW504/PERIFERICOS)
+    doc.setFont('helvetica','bold');doc.setFontSize(15);
+    doc.setTextColor(...PRETO);
+    const desc2=c.desc||c.nome;
+    doc.text(desc2.substring(0,70), M+2, M+20, {maxWidth:w-4});
   }
 
   function drawTable(cols,rows,legenda){
-    const y0=M+21;
+    const y0=M+26;
     const totalW=PW-M*2;
-    const totP=cols.reduce((s,c)=>s+c.p,0);
+    const totP=cols.reduce((s,col)=>s+col.p,0);
     let xA=M;
     const C=cols.map(col=>{const w=(col.p/totP)*totalW;const o={...col,x:xA,w};xA+=w;return o;});
 
-    // Cabeçalho colunas
-    doc.setFillColor(...CZH);
+    // Cabecalho colunas
+    doc.setFillColor(...CINZA);
     doc.rect(M,y0,totalW,7,'F');
-    doc.setDrawColor(...CZB);doc.setLineWidth(0.25);
+    doc.setDrawColor(...BORDA);doc.setLineWidth(0.3);
     doc.rect(M,y0,totalW,7);
-    doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor(...PRETO);
+    doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(...PRETO);
     C.forEach((col,i)=>{
-      doc.text(col.l,col.x+1,y0+5,{maxWidth:col.w-2});
-      if(i<C.length-1)doc.line(col.x+col.w,y0,col.x+col.w,y0+7);
+      doc.text(col.l, col.x+1, y0+5, {maxWidth:col.w-2});
+      if(i<C.length-1) doc.line(col.x+col.w,y0,col.x+col.w,y0+7);
     });
 
-    // Linhas dados + branco
+    // Linhas de dados + em branco
     const data=[...rows];
-    while(data.length<MIN_ROWS)data.push(null);
+    while(data.length<MIN_ROWS) data.push(null);
     let yR=y0+7;
-    doc.setFont('helvetica','normal');doc.setFontSize(6.5);
+    doc.setFont('helvetica','normal');doc.setFontSize(7);
     data.forEach((row,i)=>{
       doc.setFillColor(...(i%2===0?LIST:BRANCO));
       doc.rect(M,yR,totalW,LH,'F');
-      doc.setDrawColor(...CZB);
-      doc.rect(M,yR,totalW,LH);
+      doc.setDrawColor(...BORDA);doc.rect(M,yR,totalW,LH);
       C.forEach((col,ci)=>{
-        if(ci<C.length-1)doc.line(col.x+col.w,yR,col.x+col.w,yR+LH);
-        if(row&&row[ci]!=null&&row[ci]!==''){
+        if(ci<C.length-1) doc.line(col.x+col.w,yR,col.x+col.w,yR+LH);
+        if(row&&row[ci]!=null&&String(row[ci]).trim()!==''){
           doc.setTextColor(...PRETO);
-          doc.text(String(row[ci]).substring(0,Math.ceil(col.w/1.8)),col.x+1,yR+5.2,{maxWidth:col.w-2});
+          doc.text(String(row[ci]).substring(0,60),col.x+1,yR+5.5,{maxWidth:col.w-2});
         }
       });
       yR+=LH;
     });
-    // Legenda
-    doc.setFont('helvetica','italic');doc.setFontSize(5.5);doc.setTextColor(90,90,90);
+    doc.setFont('helvetica','italic');doc.setFontSize(6);
+    doc.setTextColor(90,90,90);
     doc.text(legenda,M+1,yR+4);
   }
 
-  // ── PÁGINA 1: FONTES DE ENERGIA (colunas A–E) ────────────────
+  // PAGINA 1: FONTES DE ENERGIA
   drawHeader();
   drawTable(
-    [{l:'TAG',p:12},{l:'FONTES DE ENERGIA',p:55},{l:'Nº CARTÃO',p:15},{l:'B',p:4},{l:'D',p:4}],
+    [{l:'TAG',p:12},{l:'FONTES DE ENERGIA',p:54},{l:'No CARTAO',p:16},{l:'B',p:5},{l:'D',p:5}],
     c.fontes.map(f=>[f.tag||'',f.desc||'',f.num||'','','']),
     'B: Bloqueado e testado    D: Fonte liberada para desbloqueio'
   );
 
-  // ── PÁGINA 2: ATIVIDADES EXTERNAS / LTs (colunas F–M) ────────
+  // PAGINA 2: ATIVIDADES EXTERNAS
   doc.addPage();
   drawHeader();
   drawTable(
-    [{l:'TAG',p:10},{l:'DESCRIÇÃO DAS ATIVIDADES EXTERNAS',p:46},{l:'Nº LT',p:13},{l:'EXEC. LÍDER',p:14},{l:'EMPRESA',p:12},{l:'A',p:4},{l:'E',p:4}],
-    ltsCB.map(l=>[l.tag||'',l.desc||l.equip||'',l.num||'',l.lider||'',l.empresa||'','','']),
+    [{l:'TAG',p:11},{l:'DESCRICAO DAS ATIVIDADES EXTERNAS',p:44},{l:'No LT',p:13},{l:'EXEC. LIDER',p:14},{l:'EMPRESA',p:13},{l:'A',p:5},{l:'E',p:5}],
+    ltsCB.map(l=>[l._tag||'',l.desc||l.equip||'',l.num||'',l.lider||'',l.empresa||'','','']),
     'A: LT autorizada    E: LT encerrada'
   );
 
-  // ── SALVAR ────────────────────────────────────────────────────
-  const fname=`CartaoBloqueador_${c.nome}_${new Date().toISOString().slice(0,10)}.pdf`;
+  const fname='CartaoBloqueador_'+c.nome+'_'+new Date().toISOString().slice(0,10)+'.pdf';
   try{
     if(navigator.share&&navigator.canShare){
       const blob=doc.output('blob');
       const file=new File([blob],fname,{type:'application/pdf'});
       if(navigator.canShare({files:[file]})){
-        await navigator.share({files:[file],title:'Cartão Bloqueador '+c.nome});
-        toast('✔ PDF compartilhado!');return;
+        await navigator.share({files:[file],title:'Cartao Bloqueador '+c.nome});
+        toast('Pg.1=Fontes  Pg.2=Atividades');return;
       }
     }
-    doc.save(fname);toast('✔ PDF salvo! Página 1=Fontes, Página 2=Atividades');
-  }catch(err){if(err.name!=='AbortError')toast('⚠️ Erro: '+err.message,'err');}
+    doc.save(fname);
+    toast('PDF salvo! Pg.1=Fontes de Energia  Pg.2=Atividades');
+  }catch(err){if(err.name!=='AbortError')toast('Erro: '+err.message,'err');}
 }
+
 
 
 
