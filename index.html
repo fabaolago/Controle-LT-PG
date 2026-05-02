@@ -365,6 +365,7 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
   <button class="tb"     onclick="tab('rel',this)">📈 Relatório</button>
   <button class="tb"     onclick="tab('crono',this)">📅 Cronograma <span class="adot" id="cdot"></span></button>
   <button class="tb"     onclick="tab('cb',this)">🔒 Cart. Bloqueio</button>
+  <button class="tb"     onclick="tab('adm',this)">⚙️ ADM</button>
 </div>
 <main>
 
@@ -518,9 +519,10 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
     <th onclick="srt('area')">Área ⇅</th>
     <th onclick="srt('disc')">Disciplina ⇅</th><th onclick="srt('equip')">Equipamento ⇅</th>
     <th onclick="srt('empresa')">Empresa ⇅</th><th onclick="srt('lider')">Líder ⇅</th>
+    <th onclick="srt('resp')">Responsável ⇅</th><th>C.Trab</th>
     <th>Cart.Bloq.</th><th>Cadeado</th>
     <th onclick="srt('prio')">Prioridade ⇅</th><th onclick="srt('status')">Status ⇅</th>
-    <th>Início</th><th>Término</th><th>Ações</th>
+    <th>Início</th><th>Término</th><th>Descrição</th><th>Ações</th>
   </tr></thead><tbody id="ltb"></tbody></table></div>
 </div>
 
@@ -690,6 +692,42 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
   </div>
 </div>
 
+
+<!-- ADM -->
+<div id="tab-adm" class="tp">
+  <div id="adm-lock" style="max-width:360px;margin:40px auto;text-align:center">
+    <div style="font-size:42px;margin-bottom:12px">⚙️</div>
+    <div style="font-family:var(--fh);font-size:18px;font-weight:800;color:var(--sz-aml);margin-bottom:8px">Painel Administrativo</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px">Digite a senha para acessar</div>
+    <input type="password" id="adm-pw" placeholder="Senha ADM" maxlength="30"
+      style="text-align:center;font-size:16px;letter-spacing:3px;width:100%;margin-bottom:10px"
+      onkeydown="if(event.key==='Enter')admLogin()">
+    <div id="adm-err" style="display:none;font-size:11px;color:var(--sz-brd);margin-bottom:8px">⚠️ Senha incorreta</div>
+    <button class="btn bp bxl" onclick="admLogin()" style="width:100%">Entrar</button>
+  </div>
+  <div id="adm-panel" style="display:none">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:16px">
+      <div style="font-family:var(--fh);font-size:18px;font-weight:800;color:var(--sz-aml)">⚙️ Painel ADM</div>
+      <button class="btn bs bsm" onclick="admLogout()">🔓 Sair</button>
+    </div>
+    <!-- KPIs de acesso -->
+    <div class="ks" style="margin-bottom:20px" id="adm-kpis"></div>
+    <!-- Feedbacks -->
+    <div class="st">💬 Feedbacks e Sugestões</div>
+    <div class="flt" style="margin-bottom:10px">
+      <select id="adm-filt-nota" onchange="rAdm()">
+        <option value="">Todas as notas</option>
+        <option value="5">⭐⭐⭐⭐⭐ 5</option>
+        <option value="4">⭐⭐⭐⭐ 4</option>
+        <option value="3">⭐⭐⭐ 3</option>
+        <option value="2">⭐⭐ 2</option>
+        <option value="1">⭐ 1</option>
+      </select>
+      <button class="btn bd2 bsm" onclick="limparFeedbacks()">🗑 Limpar todos</button>
+    </div>
+    <div id="adm-feedbacks"></div>
+  </div>
+</div>
 </main>
 
 <!-- MODAL STATUS -->
@@ -729,6 +767,89 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
     <div id="posinfo" style="font-size:10px;color:var(--muted);margin-bottom:12px"></div>
     <div id="plist" style="margin-bottom:14px"></div>
     <div class="fa"><button class="btn bs" onclick="document.getElementById('mpas').classList.remove('on')">Fechar</button></div>
+  </div>
+</div>
+
+<!-- MODAL PDF CARTÃO BLOQUEADOR -->
+<div class="mo" id="mcb-pdf" onclick="closeMo(event,'mcb-pdf')">
+  <div class="md" style="max-width:480px">
+    <h3>📄 Gerar PDF — Cartão Bloqueador</h3>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:14px">
+      Confirme ou edite as informações que aparecerão no cabeçalho do PDF:
+    </div>
+    <div style="display:grid;gap:10px">
+      <div class="fi">
+        <label>Linha 1 — Título (ex: CARTÃO BLOQUEADOR: DDW)</label>
+        <input id="pdf-linha1" placeholder="CARTÃO BLOQUEADOR: DDW">
+      </div>
+      <div class="fi">
+        <label>Linha 2 — Equipamento / Descrição (texto grande)</label>
+        <input id="pdf-linha2" placeholder="325LR504 -DDW504/PERIFÉRICOS">
+      </div>
+      <div class="fi">
+        <label>Número do Cartão (aparece em destaque)</label>
+        <input id="pdf-cbnum" placeholder="CB01">
+      </div>
+      <div class="fi">
+        <label>Linhas em branco para preenchimento manual</label>
+        <select id="pdf-minrows">
+          <option value="15">15 linhas</option>
+          <option value="20" selected>20 linhas</option>
+          <option value="25">25 linhas</option>
+          <option value="30">30 linhas</option>
+        </select>
+      </div>
+    </div>
+    <div class="fa" style="margin-top:14px">
+      <button class="btn bp" onclick="confirmarPDF()">📤 Gerar e Compartilhar</button>
+      <button class="btn bs" onclick="document.getElementById('mcb-pdf').classList.remove('on')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- BOTÃO FLUTUANTE FEEDBACK -->
+<button id="fb-btn" onclick="abrirFeedback()"
+  style="position:fixed;bottom:70px;right:16px;z-index:400;
+  background:var(--sz-inov);border:none;border-radius:50%;width:48px;height:48px;
+  font-size:20px;cursor:pointer;box-shadow:0 3px 12px rgba(0,0,0,.4);
+  transition:transform .2s" onmouseover="this.style.transform='scale(1.12)'"
+  onmouseout="this.style.transform='scale(1)'" title="Avaliar / Sugerir">💬</button>
+<!-- MODAL FEEDBACK -->
+<div class="mo" id="mfeedback" onclick="closeMo(event,'mfeedback')">
+  <div class="md" style="max-width:400px">
+    <h3>💬 Avaliação &amp; Sugestões</h3>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:14px">
+      Sua opinião ajuda a melhorar o app!
+    </div>
+    <div style="display:grid;gap:11px">
+      <div class="fi">
+        <label>Nota geral</label>
+        <div id="star-row" style="display:flex;gap:8px;margin-top:4px">
+          <span class="star-btn" data-v="1" onclick="setStar(1)" style="font-size:28px;cursor:pointer;opacity:.4">⭐</span>
+          <span class="star-btn" data-v="2" onclick="setStar(2)" style="font-size:28px;cursor:pointer;opacity:.4">⭐</span>
+          <span class="star-btn" data-v="3" onclick="setStar(3)" style="font-size:28px;cursor:pointer;opacity:.4">⭐</span>
+          <span class="star-btn" data-v="4" onclick="setStar(4)" style="font-size:28px;cursor:pointer;opacity:.4">⭐</span>
+          <span class="star-btn" data-v="5" onclick="setStar(5)" style="font-size:28px;cursor:pointer;opacity:.4">⭐</span>
+        </div>
+      </div>
+      <div class="fi">
+        <label>O que você mais gosta?</label>
+        <textarea id="fb-pos" placeholder="Pontos positivos..." style="min-height:56px"></textarea>
+      </div>
+      <div class="fi">
+        <label>O que pode melhorar?</label>
+        <textarea id="fb-neg" placeholder="Sugestões de melhoria..." style="min-height:56px"></textarea>
+      </div>
+      <div class="fi">
+        <label>Nome (opcional)</label>
+        <input id="fb-nome" placeholder="Seu nome ou deixe em branco">
+      </div>
+    </div>
+    <div class="fa" style="margin-top:14px">
+      <button class="btn bp" onclick="enviarFeedback()">✔ Enviar</button>
+      <button class="btn bs" onclick="document.getElementById('mfeedback').classList.remove('on')">Cancelar</button>
+    </div>
   </div>
 </div>
 
@@ -941,11 +1062,12 @@ function rPainel(){
   updAlarms();
 }
 function kpiF(f,area){
-  document.getElementById('fsts').value=f;
+  document.getElementById('fsts').value=f||'';
   ['ftxt','fdisc2','fpri','feq','fblq'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   resetAreaFilt('lista');
+  // Aplicar área do painel como filtro na lista
   if(area){
-    const chk=document.querySelector(`.ac-lista[value="${area}"]`);
+    const chk=document.querySelector('.ac-lista[value="'+area+'"]');
     if(chk){chk.checked=true;document.getElementById('ac-lista-all').checked=false;updateAreaBtn('lista');}
   }
   document.querySelectorAll('.tb').forEach(b=>b.classList.remove('on'));
@@ -1262,7 +1384,7 @@ function rLista(){
   const fl=getSorted(getFilt());
   document.getElementById('lcount').textContent=`${fl.length} de ${LTS.length} LTs`;
   const tb=document.getElementById('ltb');
-  if(!fl.length){tb.innerHTML=`<tr><td colspan="14"><div class="es"><div class="ei">🔍</div><p>Nenhuma LT.</p></div></td></tr>`;return;}
+  if(!fl.length){tb.innerHTML=`<tr><td colspan="17"><div class="es"><div class="ei">🔍</div><p>Nenhuma LT.</p></div></td></tr>`;return;}
   tb.innerHTML=fl.map(l=>{const od=ovd(l);const lt2=late(l);
     const areaBadge=l.area?`<span style="font-size:9px;font-weight:800;padding:1px 6px;border-radius:3px;background:#1932c820;color:#60a5fa;border:1px solid #1932c8">${l.area}</span>`:'—';
     return`<tr class="${od||lt2?'ra':''}">
@@ -1270,13 +1392,17 @@ function rLista(){
       <td class="sc">${l.os||'—'}</td>
       <td>${areaBadge}</td>
       <td>${dspan(l.disc)}</td>
-      <td class="hi" style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${l.equip}">${l.equip}</td>
-      <td class="hi">${l.empresa||'—'}</td><td class="hi">${l.lider||'—'}</td>
+      <td class="hi" style="max-width:130px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${l.equip}">${l.equip}</td>
+      <td class="hi">${l.empresa||'—'}</td>
+      <td class="hi">${l.lider||'—'}</td>
+      <td class="sc">${l.resp||'—'}</td>
+      <td class="sc" style="font-size:11px">${l.ctrab||'—'}</td>
       <td class="sc">${l.cartao||'—'}</td><td class="sc">${l.cadeado||'—'}</td>
       <td class="pr-${(l.prio||'N')[0]}">${l.prio||'Normal'}</td>
       <td><span class="sp sp-${l.status}">${stl(l.status)}</span></td>
       <td class="sc" style="font-size:11px">${fdt(l.inicio)}</td>
       <td style="font-size:11px;color:${od?'var(--sz-brd)':'var(--muted)'}">${fdt(l.fim)}</td>
+      <td class="sc" style="font-size:11px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${l.desc||''}">${l.desc||'—'}</td>
       <td><div style="display:flex;gap:4px">
         <button class="btn bs bsm" onclick="openMSts('${l.id}')" title="Status">🔄</button>
         <button class="btn bs bsm" onclick="pedirSenhaEdit('edit','${l.id}')" title="Editar">✏️</button>
@@ -1630,29 +1756,6 @@ function buildPDF(rows,title){
         if(d.cell.raw==='Alta')d.cell.styles.textColor=[200,95,15];}
     }}
   });
-  if(CRONOS.length){
-    doc.addPage();
-    doc.setFillColor(25,50,200);doc.rect(0,0,297,15,'F');
-    doc.setTextColor(200,145,15);doc.setFont('helvetica','bold');doc.setFontSize(11);doc.text('CRONOGRAMA — STATUS DE LIBERAÇÃO',14,10);
-    doc.setTextColor(220,232,250);doc.setFont('helvetica','normal');doc.setFontSize(8);
-    const sl=CRONOS.filter(c=>csit(c).code==='alarm').length;
-    doc.text(`${CRONOS.length} tarefas  |  ${sl} sem LT ou com prazo esgotado`,14,21);
-    doc.autoTable({startY:25,
-      styles:{fontSize:7,cellPadding:2,textColor:[220,236,255],fillColor:[20,28,43]},
-      headStyles:{fillColor:[25,50,200],textColor:[200,145,15],fontStyle:'bold'},
-      alternateRowStyles:{fillColor:[25,35,58]},
-      head:[['Nome da Tarefa','OS','Empresa','Início Plan.','Término Plan.','LT Vinc.','Situação']],
-      body:CRONOS.map(c=>{const lk=ltForC(c);const s=csit(c);
-        return[c.desc.substring(0,48),c.os||'—',c.empresa||'—',fdt(c.inicio),fdt(c.fim),lk?lk.num:'—',s.lbl.replace(/^[^\w]+\s?/,'')];
-      }),
-      didParseCell:(d)=>{if(d.section==='body'&&d.column.index===6){const v=d.cell.raw;
-        if(v.includes('Sem LT')||v.includes('esgotado'))d.cell.styles.textColor=[180,75,90];
-        else if(v.includes('Não Inic'))d.cell.styles.textColor=[200,95,15];
-        else if(v.includes('Execução'))d.cell.styles.textColor=[25,50,200];
-        else if(v.includes('Concluído'))d.cell.styles.textColor=[0,200,90];
-      }}
-    });
-  }
   return doc;
 }
 async function _share(rows,title){
@@ -1725,8 +1828,11 @@ function getCB(){ return CB_LIST[CB_IDX] || null; }
 function novoCB(){
   const nome = prompt('Nome do cartão bloqueador:', 'CB0'+(CB_LIST.length+1));
   if(!nome) return;
-  const desc = prompt('Descrição / Equipamento:', '') || '';
-  CB_LIST.push({id:'cb_'+Date.now(), nome, desc, fontes:[], cor:'#1932c8'});
+  const desc = prompt('Descrição / Equipamento (ex: 325LR504 -DDW504/PERIFÉRICOS):', '') || '';
+  const areas = ['Extração Cavacos','Cozimento','Pré Branqueamento','Depuração','Branqueamento','Laje DDW','Planta Química'];
+  const areaStr = prompt('Área (deixe vazio para todas):\n'+areas.map((a,i)=>(i+1)+'. '+a).join('\n'), '') || '';
+  const area = areas.find(a=>a.toLowerCase().includes(areaStr.toLowerCase().trim()))||areaStr||'';
+  CB_LIST.push({id:'cb_'+Date.now(), nome, desc, area, fontes:[]});
   CB_IDX = CB_LIST.length - 1;
   svCB(); rCBTabs(); rCB();
 }
@@ -1736,7 +1842,7 @@ function rCBTabs(){
   if(!bar) return;
   if(!CB_LIST.length){ bar.innerHTML=''; return; }
   bar.innerHTML = CB_LIST.map((c,i)=>
-    `<button class="cb-tab ${i===CB_IDX?'on':''}" onclick="switchCB(${i})">${c.nome}</button>`
+    `<button class="cb-tab ${i===CB_IDX?'on':''}" onclick="switchCB(${i})" title="${c.area||'Todas as áreas'}">${c.nome}${c.area?' <span style="font-size:9px;opacity:.7">('+c.area.split(' ')[0]+')</span>':''}</button>`
   ).join('');
 }
 
@@ -1753,11 +1859,15 @@ function rCB(){
     el.innerHTML=`<div class="es"><div class="ei">🔒</div><p>Nenhum cartão. Clique em "+ Novo Cartão" ou importe do Excel.</p></div>`;
     return;
   }
-  // Coletar LTs vinculadas a este cartão
+  // Coletar LTs vinculadas a este cartão (filtra por área se o cartão tiver área definida)
   const ltsCB = LTS.filter(l => {
     const cb = (l.cartao||'').trim().toUpperCase();
     const nome = c.nome.trim().toUpperCase();
-    return cb === nome || cb === nome.replace(/^CB0*/,'CB');
+    const nomeMatch = cb === nome || cb === nome.replace(/^CB0*/,'CB');
+    if(!nomeMatch) return false;
+    // Se o cartão tem área definida, só aceita LTs da mesma área
+    if(c.area) return (l.area||'').trim()===c.area.trim();
+    return true;
   });
 
   const fontesHTML = c.fontes.length ? c.fontes.map((f,i)=>`
@@ -1790,12 +1900,12 @@ function rCB(){
       <div class="cb-header">
         <div>
           <div class="cb-title">CARTÃO BLOQUEADOR · ${c.nome}</div>
-          <div class="cb-sub">${c.desc||''}</div>
+          <div class="cb-sub">${c.desc||''}${c.area?' &nbsp;·&nbsp; <span style="color:var(--sz-aml)">'+c.area+'</span>':''}</div>
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="btn bs bsm" onclick="editarCB()">✏️ Renomear</button>
           <button class="btn bp bsm" onclick="pedirSenhaEdit('cbAddFonte',null)">+ Fonte de Energia</button>
-          <button class="btn baz bsm" onclick="compartilharCBPDF()">📤 Imprimir / PDF</button>
+          <button class="btn baz bsm" onclick="abrirModalPDF()">📤 Imprimir / PDF</button>
           <button class="btn bd2 bsm" onclick="pedirSenhaEdit('cbDel',null)">🗑 Remover</button>
         </div>
       </div>
@@ -1836,8 +1946,13 @@ function rCB(){
 function editarCB(){
   const c = getCB(); if(!c) return;
   const nome = prompt('Nome do cartão:', c.nome); if(!nome) return;
-  const desc = prompt('Descrição:', c.desc||'');
-  c.nome = nome; c.desc = desc||'';
+  const desc = prompt('Descrição / Equipamento:', c.desc||'');
+  const areas = ['Extração Cavacos','Cozimento','Pré Branqueamento','Depuração','Branqueamento','Laje DDW','Planta Química'];
+  const areaAtual = c.area||'';
+  const areaStr = prompt('Área deste cartão (atual: '+(areaAtual||'todas')+'):\n'+areas.map((a,i)=>(i+1)+'. '+a).join('\n'), areaAtual);
+  if(areaStr===null) return;
+  const area = areas.find(a=>a.toLowerCase().includes(areaStr.toLowerCase().trim()))||areaStr||'';
+  c.nome=nome; c.desc=desc||''; c.area=area;
   svCB(); rCBTabs(); rCB();
 }
 
@@ -1961,16 +2076,44 @@ function importarCBExcel(e){
 }
 
 // PDF do cartão
-async function compartilharCBPDF(){
+function abrirModalPDF(){
+  const c=getCB();if(!c)return;
+  const titulo=linha1;
+  document.getElementById('pdf-linha1').value=titulo;
+  document.getElementById('pdf-linha2').value=c.desc||'';
+  document.getElementById('pdf-cbnum').value=c.nome;
+  document.getElementById('pdf-minrows').value='20';
+  document.getElementById('mcb-pdf').classList.add('on');
+}
+function confirmarPDF(){
+  document.getElementById('mcb-pdf').classList.remove('on');
+  compartilharCBPDF(
+    document.getElementById('pdf-linha1').value.trim(),
+    document.getElementById('pdf-linha2').value.trim(),
+    document.getElementById('pdf-cbnum').value.trim(),
+    parseInt(document.getElementById('pdf-minrows').value)||20
+  );
+}
+
+async function compartilharCBPDF(linha1Param,linha2Param,cbNumParam,minRowsParam){
   const c=getCB();if(!c)return;
   if(!window.jspdf){toast('⚠️ jsPDF não carregado','err');return;}
   const {jsPDF}=window.jspdf;
 
-  // LTs vinculadas — busca TAG no cronograma pela OS
+  // Parâmetros do cabeçalho (editáveis via modal)
+  const linha1=linha1Param||(c.desc?'CARTÃO BLOQUEADOR: '+c.desc.trim().split(/[\s\-]/)[0].toUpperCase():'CARTÃO BLOQUEADOR: SUZANO');
+  const linha2=linha2Param||c.desc||c.nome;
+  const cbNum=cbNumParam||c.nome;
+  const MIN_ROWS=minRowsParam||20;
+
+  // LTs vinculadas — filtra por área do cartão se definida
   const ltsCB=LTS.filter(l=>{
     const cb=(l.cartao||'').trim().toUpperCase();
     const nm=c.nome.trim().toUpperCase();
-    return cb===nm||cb===nm.replace(/^CB0*/,'CB');
+    const nomeMatch=cb===nm||cb===nm.replace(/^CB0*/,'CB');
+    if(!nomeMatch)return false;
+    if(c.area)return(l.area||'').trim()===c.area.trim();
+    return true;
   }).map(l=>{
     let tag=l.tag||'';
     if(!tag&&l.os){
@@ -1985,7 +2128,7 @@ async function compartilharCBPDF(){
   const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
   doc.setProperties({title:'Cartao Bloqueador '+c.nome,subject:c.desc||'',creator:'Controle LT Suzano'});
 
-  const PW=297,M=6,LH=8,MIN_ROWS=20;
+  const PW=297,M=6,LH=8;
   const PRETO=[0,0,0],AZUL=[25,50,200],CINZA=[215,215,215],BORDA=[150,150,150],
         BRANCO=[255,255,255],LIST=[246,246,250];
 
@@ -2008,7 +2151,7 @@ async function compartilharCBPDF(){
     // CB01 destaque obrigatorio canto direito
     doc.setFont('helvetica','bold');doc.setFontSize(22);
     doc.setTextColor(...AZUL);
-    doc.text(c.nome, M+w-2, M+9, {align:'right'});
+    doc.text(cbNum, M+w-2, M+9, {align:'right'});
 
     // Linha separadora
     doc.setDrawColor(...BORDA);doc.setLineWidth(0.3);
@@ -2017,8 +2160,7 @@ async function compartilharCBPDF(){
     // LINHA 2: descricao grande (ex: 325LR504 -DDW504/PERIFERICOS)
     doc.setFont('helvetica','bold');doc.setFontSize(15);
     doc.setTextColor(...PRETO);
-    const desc2=c.desc||c.nome;
-    doc.text(desc2.substring(0,70), M+2, M+20, {maxWidth:w-4});
+    doc.text((linha2||'').substring(0,70), M+2, M+20, {maxWidth:w-4});
   }
 
   function drawTable(cols,rows,legenda){
@@ -2132,7 +2274,130 @@ function render(){
   if(!a||a==='tab-rel')rRel();
   if(!a||a==='tab-crono')rCrono();
   if(!a||a==='tab-cb'){rCBTabs();rCB();}
+  if(a==='tab-adm')rAdm();
   updAlarms();
+}
+
+// ═══ FEEDBACK & ADM ═══════════════════════════════════════════════
+const SENHA_ADM = 'pg26';
+let _admOk = false;
+let _starVal = 0;
+
+// Contagem de acessos
+(function(){
+  const k='lt_acessos';
+  const d=JSON.parse(localStorage.getItem(k)||'{"total":0,"datas":[]}');
+  d.total=(d.total||0)+1;
+  const hoje=new Date().toISOString().slice(0,10);
+  if(!d.datas) d.datas=[];
+  d.datas.push(hoje);
+  if(d.datas.length>500) d.datas=d.datas.slice(-500);
+  localStorage.setItem(k,JSON.stringify(d));
+  // Sync Firebase
+  if(window._fbOk){
+    try{
+      const _db3=firebase.database();
+      _db3.ref('acessos/'+Date.now()).set({dt:new Date().toISOString(),ua:navigator.userAgent.substring(0,60)});
+    }catch(e){}
+  }
+})();
+
+function abrirFeedback(){
+  _starVal=0;
+  document.querySelectorAll('.star-btn').forEach(s=>s.style.opacity='.4');
+  ['fb-pos','fb-neg','fb-nome'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('mfeedback').classList.add('on');
+}
+function setStar(v){
+  _starVal=v;
+  document.querySelectorAll('.star-btn').forEach(s=>{
+    s.style.opacity=parseInt(s.dataset.v)<=v?'1':'.3';
+  });
+}
+function enviarFeedback(){
+  if(!_starVal){toast('⚠️ Selecione uma nota!','err');return;}
+  const fb={
+    id:'fb_'+Date.now(),
+    nota:_starVal,
+    pos:document.getElementById('fb-pos').value.trim(),
+    neg:document.getElementById('fb-neg').value.trim(),
+    nome:document.getElementById('fb-nome').value.trim()||'Anônimo',
+    dt:new Date().toISOString()
+  };
+  // Salvar local
+  const fbs=JSON.parse(localStorage.getItem('lt_feedbacks')||'[]');
+  fbs.push(fb);localStorage.setItem('lt_feedbacks',JSON.stringify(fbs));
+  // Salvar Firebase
+  if(window._fbOk){
+    try{firebase.database().ref('feedbacks/'+fb.id).set(fb);}catch(e){}
+  }
+  document.getElementById('mfeedback').classList.remove('on');
+  toast('✔ Obrigado pelo feedback!');
+}
+
+// ADM
+function admLogin(){
+  const pw=document.getElementById('adm-pw').value;
+  if(pw===SENHA_ADM){
+    _admOk=true;
+    document.getElementById('adm-lock').style.display='none';
+    document.getElementById('adm-panel').style.display='block';
+    rAdm();
+  } else {
+    document.getElementById('adm-err').style.display='block';
+    document.getElementById('adm-pw').value='';
+  }
+}
+function admLogout(){
+  _admOk=false;
+  document.getElementById('adm-lock').style.display='block';
+  document.getElementById('adm-panel').style.display='none';
+  document.getElementById('adm-pw').value='';
+  document.getElementById('adm-err').style.display='none';
+}
+function rAdm(){
+  if(!_admOk)return;
+  // KPIs de acesso
+  const ac=JSON.parse(localStorage.getItem('lt_acessos')||'{"total":0,"datas":[]}');
+  const hoje=new Date().toISOString().slice(0,10);
+  const ultimos7=ac.datas?ac.datas.filter(d=>d>=new Date(Date.now()-7*86400000).toISOString().slice(0,10)).length:0;
+  const fbs=JSON.parse(localStorage.getItem('lt_feedbacks')||'[]');
+  const media=fbs.length?Math.round(fbs.reduce((s,f)=>s+f.nota,0)/fbs.length*10)/10:0;
+  document.getElementById('adm-kpis').innerHTML=[
+    {l:'Total Acessos',v:ac.total||0,s:'desde instalação',c:'#1932c8'},
+    {l:'Últimos 7 dias',v:ultimos7,s:'acessos',c:'#00c85a'},
+    {l:'Feedbacks',v:fbs.length,s:'recebidos',c:'#c8910f'},
+    {l:'Nota Média',v:media||'—',s:'de 5 estrelas',c:'#c85f0f'},
+    {l:'LTs Cadastradas',v:LTS.length,s:'no total',c:'#1932c8'},
+    {l:'Cronogramas',v:CRONOS_LIST.length,s:'importados',c:'#007836'},
+  ].map(k=>`<div class="kpi" style="--kc:${k.c}">
+    <div class="kl">${k.l}</div><div class="kv">${k.v}</div>
+    <div class="ks2">${k.s}</div></div>`).join('');
+  // Feedbacks
+  const filtNota=document.getElementById('adm-filt-nota')?.value||'';
+  const lista=fbs.filter(f=>!filtNota||f.nota==filtNota).reverse();
+  const el=document.getElementById('adm-feedbacks');
+  if(!lista.length){
+    el.innerHTML='<div class="es"><div class="ei">💬</div><p>Nenhum feedback ainda.</p></div>';return;
+  }
+  el.innerHTML=lista.map(f=>`
+    <div style="background:var(--card);border:1px solid var(--bdr);border-radius:6px;padding:12px 14px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:6px">
+        <div style="display:flex;gap:4px;align-items:center">
+          ${'⭐'.repeat(f.nota)}${'☆'.repeat(5-f.nota)}
+          <span style="font-family:var(--fh);font-size:12px;font-weight:800;color:var(--sz-aml);margin-left:6px">${f.nome}</span>
+        </div>
+        <span style="font-size:10px;color:var(--muted)">${new Date(f.dt).toLocaleString('pt-BR')}</span>
+      </div>
+      ${f.pos?`<div style="font-size:12px;color:var(--sz-verde);margin-bottom:4px">✅ ${f.pos}</div>`:''}
+      ${f.neg?`<div style="font-size:12px;color:var(--sz-lrj)">💡 ${f.neg}</div>`:''}
+    </div>`).join('');
+}
+function limparFeedbacks(){
+  if(!confirm('Remover todos os feedbacks?'))return;
+  localStorage.removeItem('lt_feedbacks');
+  if(window._fbOk){try{firebase.database().ref('feedbacks').remove();}catch(e){}}
+  rAdm();toast('🗑️ Feedbacks removidos.');
 }
 
 // ═══ INIT ═════════════════════════════════════════════════════════
