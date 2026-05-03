@@ -413,7 +413,7 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
       <div class="fi"><label>Ordem de Serviço (OS)</label><input id="fos" placeholder="OS-9900456" oninput="scheduleAutoFill()" onblur="autoFillOS()"></div>
       <div class="fi"><label>Cartão de Bloqueio</label><input id="fcartao" placeholder="CB-0087"></div>
       <div class="fi"><label>Nº do Cadeado</label><input id="fcadeado" placeholder="045"></div>
-      <div class="fi"><label>Centro de Trabalho</label><input id="fctrab" placeholder="Ex: MECÂNICA-01"></div>
+      <div class="fi"><label>Centro de Trabalho</label><input id="fctrab" placeholder="Ex: MEC-01, ELE-02..." oninput="autoDiscFromCtrab()"></div>
       <div class="fi"><label>Área *</label>
         <select id="farea">
           <option value="">— Selecione a Área —</option>
@@ -476,6 +476,7 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
       <option value="Crítica">Crítica</option><option value="Alta">Alta</option><option value="Normal">Normal</option>
     </select>
     <input id="feq" placeholder="Equipamento..." oninput="rLista()">
+    <input id="fresp2" placeholder="Responsável..." oninput="rLista()" style="max-width:160px">
     <div style="position:relative;flex:1;min-width:155px">
       <button onclick="toggleAreaDrop('lista')" id="area-btn-lista"
         style="width:100%;background:var(--bg);border:1px solid var(--bdr);border-radius:4px;
@@ -882,11 +883,26 @@ const DISC=[
   {id:'instrumentacao',n:'Instrumentação'},{id:'caldeiraria',n:'Caldeiraria'},
   {id:'lubrificacao',n:'Lubrificação'},{id:'inspecao',n:'Inspeção'},
   {id:'operacao',n:'Operação'},{id:'hidrojato',n:'Hidrojato'},
-  {id:'limpeza',n:'Limpeza'},{id:'civil',n:'Civil'},{id:'revestimento',n:'Revestimento'}
+  {id:'limpeza',n:'Limpeza'},{id:'civil',n:'Civil'},{id:'revestimento',n:'Revestimento'},
+  {id:'hidraulica',n:'Hidráulica'},{id:'andaime',n:'Andaime'},{id:'cto_operacao',n:'CTO Operação'}
 ];
 const DC={mecanica:'#1932c8',eletrica:'#c8910f',instrumentacao:'#007836',caldeiraria:'#c85f0f',
   lubrificacao:'#91714b',inspecao:'#00c85a',operacao:'#03267f',hidrojato:'#4b8fc8',
-  limpeza:'#aeab9e',civil:'#b44b5a',revestimento:'#c8910f'};
+  limpeza:'#aeab9e',civil:'#b44b5a',revestimento:'#c85f0f',hidraulica:'#1e6ec8',andaime:'#a07840',cto_operacao:'#03267f'};
+// Mapa centro de trabalho → disciplina (3 primeiras letras)
+const CTRAB_DISC={
+  'MEC':'mecanica','HID':'hidraulica','ELE':'eletrica','INS':'instrumentacao',
+  'CAL':'caldeiraria','LUB':'lubrificacao','INP':'inspecao','AND':'andaime',
+  'HIDR':'hidrojato','CTO':'cto_operacao','REV':'revestimento'
+};
+function discFromCtrab(ctrab){
+  if(!ctrab)return '';
+  const up=ctrab.trim().toUpperCase();
+  for(const [pfx,disc] of Object.entries(CTRAB_DISC)){
+    if(up.startsWith(pfx))return disc;
+  }
+  return '';
+}
 
 let LTS=JSON.parse(localStorage.getItem('lts5')||'[]');
 let CRONOS=JSON.parse(localStorage.getItem('cro5')||'[]');
@@ -1175,6 +1191,8 @@ function executarAcaoSenha(acao,id){
     deletarFonte(cbId, idx);
   }
   else if(acao==='cbDel'){ deletarCB(); }
+  else if(acao==='clearCrono'){ clearCrono(); }
+  else if(acao==='clearCB'){ deletarCB(); }
 }
 
 function checkDupLT(){
@@ -1225,6 +1243,12 @@ function autoFillOS(){
   fill('fdesc',    m.desc);
   fill('fresp',    m.resp||m.facilitador);
   fill('fctrab',   m.ctrab);
+  // Sugerir disciplina pelo centro de trabalho, se ainda não preenchida
+  const discEl=document.getElementById('fdisc');
+  if(m.ctrab&&discEl&&!discEl.value){
+    const d=discFromCtrab(m.ctrab);
+    if(d)discEl.value=d;
+  }
   toast('✔ Dados preenchidos do cronograma');
 }
 function salvarLT(){
@@ -1351,6 +1375,7 @@ function getFilt(){
   const prio=document.getElementById('fpri')?.value||'';
   const eq=(document.getElementById('feq')?.value||'').toLowerCase();
   const blq=document.getElementById('fblq')?.value||'';
+  const resp=(document.getElementById('fresp2')?.value||'').toLowerCase();
   const areas=getAreaFilt('lista');
   return LTS.filter(l=>{
     if(disc&&l.disc!==disc)return false;
@@ -1359,13 +1384,14 @@ function getFilt(){
     if(eq&&!(l.equip||'').toLowerCase().includes(eq))return false;
     if(blq==='com'&&!l.cartao)return false;
     if(blq==='sem'&&l.cartao)return false;
+    if(resp&&!(l.resp||'').toLowerCase().includes(resp)&&!(l.lider||'').toLowerCase().includes(resp))return false;
     if(areas.length&&!areas.includes(l.area||''))return false;
-    if(txt){const h=(l.num+l.os+l.cartao+l.cadeado+l.equip+l.empresa+l.lider+l.desc+(l.area||'')).toLowerCase();if(!h.includes(txt))return false;}
+    if(txt){const h=(l.num+l.os+l.cartao+l.cadeado+l.equip+l.empresa+l.lider+l.desc+(l.area||'')+(l.resp||'')).toLowerCase();if(!h.includes(txt))return false;}
     return true;
   });
 }
 function clearF(){
-  ['ftxt','fdisc2','fsts','fpri','feq','fblq'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+  ['ftxt','fdisc2','fsts','fpri','feq','fblq','fresp2'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   resetAreaFilt('lista');
   rLista();
 }
@@ -1539,6 +1565,8 @@ function csitT(c){
   const st=c.inicio&&new Date(c.inicio)<now;
   const en=c.fim&&new Date(c.fim)<now;
   const lks=ltsForC(c);
+  // Só gera alarme se tiver OS preenchida (evita alertas em linhas de tópico)
+  if(!c.os||!c.os.trim())return{code:'wait',lbl:'⏳ Tópico / Sem OS'};
   if(!st)return{code:'wait',lbl:'⏳ Aguardando'};
   if(!lks.length)return en?{code:'alarm',lbl:'🔴 Sem LT — prazo esgotado'}:{code:'alarm',lbl:'🔴 Sem LT liberada'};
   const todos=lks.every(l=>l.status==='C');
@@ -1563,6 +1591,7 @@ function showCMeta(){
   rCronoTabs();
 }
 function clearCrono(){
+  if(!isSenhaOk()){pedirSenhaEdit('clearCrono',null);return;}
   if(!confirm('Remover este cronograma?'))return;
   CRONOS_LIST.splice(CRONO_IDX,1);CRONO_IDX=Math.max(0,CRONO_IDX-1);
   svcList();document.getElementById('capanel').innerHTML='';
@@ -1900,13 +1929,14 @@ function rCB(){
       <div class="cb-header">
         <div>
           <div class="cb-title">CARTÃO BLOQUEADOR · ${c.nome}</div>
-          <div class="cb-sub">${c.desc||''}${c.area?' &nbsp;·&nbsp; <span style="color:var(--sz-aml)">'+c.area+'</span>':''}</div>
+          <div class="cb-sub">${c.desc||'(sem descrição)'}${c.area?' &nbsp;·&nbsp; <span style="color:var(--sz-aml)">'+c.area+'</span>':''}</div>
         </div>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <button class="btn bs bsm" onclick="editarCB()">✏️ Renomear</button>
+          <button class="btn bs bsm" onclick="definirAreaCB()" title="Definir área do cartão">📍 Área: ${c.area||'Todas'}</button>
           <button class="btn bp bsm" onclick="pedirSenhaEdit('cbAddFonte',null)">+ Fonte de Energia</button>
           <button class="btn baz bsm" onclick="abrirModalPDF()">📤 Imprimir / PDF</button>
-          <button class="btn bd2 bsm" onclick="pedirSenhaEdit('cbDel',null)">🗑 Remover</button>
+          <button class="btn bd2 bsm" onclick="pedirSenhaEdit('cbDel',null)">🗑 Remover Cartão</button>
         </div>
       </div>
       <div class="cb-body">
@@ -2080,7 +2110,7 @@ function abrirModalPDF(){
   const c=getCB();if(!c)return;
   const titulo=linha1;
   document.getElementById('pdf-linha1').value=titulo;
-  document.getElementById('pdf-linha2').value=c.desc||'';
+  document.getElementById('pdf-linha2').value=c.desc||c.nome;
   document.getElementById('pdf-cbnum').value=c.nome;
   document.getElementById('pdf-minrows').value='20';
   document.getElementById('mcb-pdf').classList.add('on');
@@ -2278,7 +2308,27 @@ function render(){
   updAlarms();
 }
 
-// ═══ FEEDBACK & ADM ═══════════════════════════════════════════════
+function autoDiscFromCtrab(){
+  const ctrab=document.getElementById('fctrab').value.trim();
+  const discEl=document.getElementById('fdisc');
+  if(!discEl.value&&ctrab){
+    const d=discFromCtrab(ctrab);
+    if(d){discEl.value=d;toast('✔ Disciplina: '+DISC.find(x=>x.id===d)?.n||d);}
+  }
+}
+function definirAreaCB(){
+  const c=getCB();if(!c)return;
+  const areas=['Extração Cavacos','Cozimento','Pré Branqueamento','Depuração','Branqueamento','Laje DDW','Planta Química'];
+  const areaAtual=c.area||'';
+  const areaStr=prompt('Área deste cartão (atual: '+(areaAtual||'Todas')+'):\n'+
+    '0. Todas as áreas\n'+areas.map((a,i)=>(i+1)+'. '+a).join('\n'),areaAtual);
+  if(areaStr===null)return;
+  if(areaStr.trim()==='0'||areaStr.trim()===''){c.area='';svCB();rCBTabs();rCB();toast('✔ Área removida — cartão visível em todas.');return;}
+  const area=areas.find(a=>a.toLowerCase().includes(areaStr.toLowerCase().trim()))||areaStr;
+  c.area=area;svCB();rCBTabs();rCB();toast('✔ Área: '+area);
+}
+
+
 const SENHA_ADM = 'pg26';
 let _admOk = false;
 let _starVal = 0;
