@@ -2188,30 +2188,26 @@ async function compartilharCBPDF(linha1Param,linha2Param,cbNumParam,minRowsParam
 
   function drawHeader(){
     const w=PW-M*2;
-    // Fundo branco com borda
     doc.setFillColor(255,255,255);
     doc.rect(M,M,w,22,'F');
     doc.setDrawColor(...BORDA);doc.setLineWidth(0.5);
     doc.rect(M,M,w,22);
 
-    // LINHA 1: titulo centralizado + CB01 obrigatorio a direita
-    const titulo=c.desc
-      ? 'CARTAO BLOQUEADOR: '+c.desc.trim().split(/[\s\-]/)[0].toUpperCase()
-      : 'CARTAO BLOQUEADOR: SUZANO';
+    // LINHA 1: usa exatamente o que foi digitado no modal (linha1)
     doc.setFont('helvetica','bold');doc.setFontSize(11);
     doc.setTextColor(...PRETO);
-    doc.text(titulo, PW/2, M+8, {align:'center'});
+    doc.text(linha1, PW/2, M+8, {align:'center'});
 
-    // CB01 destaque obrigatorio canto direito
+    // CB obrigatório destaque canto direito — usa cbNum do modal
     doc.setFont('helvetica','bold');doc.setFontSize(22);
     doc.setTextColor(...AZUL);
     doc.text(cbNum, M+w-2, M+9, {align:'right'});
 
     // Linha separadora
     doc.setDrawColor(...BORDA);doc.setLineWidth(0.3);
-    doc.line(M, M+11, M+w, M+11);
+    doc.line(M,M+11,M+w,M+11);
 
-    // LINHA 2: descricao grande (ex: 325LR504 -DDW504/PERIFERICOS)
+    // LINHA 2: usa exatamente o que foi digitado no modal (linha2)
     doc.setFont('helvetica','bold');doc.setFontSize(15);
     doc.setTextColor(...PRETO);
     doc.text((linha2||'').substring(0,70), M+2, M+20, {maxWidth:w-4});
