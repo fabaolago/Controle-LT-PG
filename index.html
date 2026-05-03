@@ -2276,25 +2276,6 @@ async function compartilharCBPDF(linha1Param,linha2Param,cbNumParam,minRowsParam
     doc.text(legenda,M+1,yR+4);
   }
 
-  function drawBlankPage(titulo){
-    drawHeader();
-    const y0=M+26;
-    doc.setFillColor(...CINZA);doc.rect(M,y0,totalW,7,'F');
-    doc.setDrawColor(...BORDA);doc.setLineWidth(0.3);doc.rect(M,y0,totalW,7);
-    doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(...PRETO);
-    doc.text(titulo,M+1,y0+5);
-    let yR=y0+7;
-    for(let i=0;i<MIN_ROWS;i++){
-      doc.setFillColor(...(i%2===0?LIST:BRANCO));
-      doc.rect(M,yR,totalW,LH,'F');
-      doc.setDrawColor(...BORDA);doc.rect(M,yR,totalW,LH);
-      yR+=LH;
-    }
-    doc.setFont('helvetica','italic');doc.setFontSize(6);
-    doc.setTextColor(90,90,90);
-    doc.text('Página em branco para preenchimento manual',M+1,yR+4);
-  }
-
   // Página 1 — Fontes de Energia
   drawHeader();
   drawTable(
@@ -2316,10 +2297,17 @@ async function compartilharCBPDF(linha1Param,linha2Param,cbNumParam,minRowsParam
     'A: LT autorizada    E: LT encerrada'
   );
 
-  // Páginas extras em branco
+  // Páginas extras em branco — mesmas colunas da pg2 (atividades)
   for(let i=0;i<extraPages;i++){
     doc.addPage();
-    drawBlankPage('PREENCHIMENTO ADICIONAL — PÁGINA '+(i+1));
+    drawHeader();
+    drawTable(
+      isPortrait
+        ?[{l:'TAG',p:12},{l:'DESC. ATIVIDADES EXTERNAS',p:40},{l:'Nº LT',p:14},{l:'EXEC. LÍDER',p:14},{l:'EMPRESA',p:14},{l:'A',p:6},{l:'E',p:6}]
+        :[{l:'TAG',p:11},{l:'DESC. ATIVIDADES EXTERNAS',p:44},{l:'Nº LT',p:13},{l:'EXEC. LÍDER',p:14},{l:'EMPRESA',p:13},{l:'A',p:5},{l:'E',p:5}],
+      [], // sem dados — só linhas em branco
+      'A: LT autorizada    E: LT encerrada'
+    );
   }
 
   const fname='CartaoBloqueador_'+cbNum+'_'+new Date().toISOString().slice(0,10)+'.pdf';
