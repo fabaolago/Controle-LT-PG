@@ -792,12 +792,27 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
         <input id="pdf-cbnum" placeholder="CB01">
       </div>
       <div class="fi">
+        <label>Orientação do papel</label>
+        <select id="pdf-orient">
+          <option value="portrait" selected>Retrato (A4 vertical) ✅</option>
+          <option value="landscape">Paisagem (A4 horizontal)</option>
+        </select>
+      </div>
+      <div class="fi">
         <label>Linhas em branco para preenchimento manual</label>
         <select id="pdf-minrows">
           <option value="15">15 linhas</option>
           <option value="20" selected>20 linhas</option>
           <option value="25">25 linhas</option>
           <option value="30">30 linhas</option>
+        </select>
+      </div>
+      <div class="fi">
+        <label>Páginas extras em branco (para adicionar à mão)</label>
+        <select id="pdf-extrapages">
+          <option value="0" selected>Nenhuma</option>
+          <option value="1">1 página extra</option>
+          <option value="2">2 páginas extras</option>
         </select>
       </div>
     </div>
@@ -2137,11 +2152,13 @@ function confirmarPDF(){
     document.getElementById('pdf-linha1').value.trim(),
     document.getElementById('pdf-linha2').value.trim(),
     document.getElementById('pdf-cbnum').value.trim(),
-    parseInt(document.getElementById('pdf-minrows').value)||20
+    parseInt(document.getElementById('pdf-minrows').value)||20,
+    document.getElementById('pdf-orient').value||'portrait',
+    parseInt(document.getElementById('pdf-extrapages').value)||0
   );
 }
 
-async function compartilharCBPDF(linha1Param,linha2Param,cbNumParam,minRowsParam){
+async function compartilharCBPDF(linha1Param,linha2Param,cbNumParam,minRowsParam,orientParam,extraPagesParam){
   const c=getCB();if(!c)return;
 
   // Aguardar jsPDF carregar (até 3s)
@@ -2151,140 +2168,175 @@ async function compartilharCBPDF(linha1Param,linha2Param,cbNumParam,minRowsParam
   }
   const jsPDFLib=(window.jspdf?.jsPDF)||(window.jsPDF);
   if(!jsPDFLib){toast('⚠️ jsPDF não carregou. Recarregue a página.','err');return;}
-
   const {jsPDF}=window.jspdf||{jsPDF:jsPDFLib};
 
-  // Parâmetros do cabeçalho (editáveis via modal)
-  const linha1=linha1Param||(c.desc?'CARTÃO BLOQUEADOR: '+c.desc.trim().split(/[\s\-]/)[0].toUpperCase():'CARTÃO BLOQUEADOR: SUZANO');
+  // Parâmetros do modal
+  const linha1=linha1Param||'CARTÃO BLOQUEADOR';
   const linha2=linha2Param||c.desc||c.nome;
-  const cbNum=cbNumParam||c.nome;
+  const cbNum =cbNumParam||c.nome;
   const MIN_ROWS=minRowsParam||20;
+  const orient=orientParam||'portrait';
+  const extraPages=extraPagesParam||0;
 
-  // LTs vinculadas — filtra por área do cartão se definida
+  // Orientação: retrato=210×297, paisagem=297×210
+  const isPortrait=(orient==='portrait');
+  const PW=isPortrait?210:297;
+  const PH=isPortrait?297:210;
+  const M=8, LH=isPortrait?8:8;
+
+  // LTs vinculadas — TAG: OS → cronograma → equip como fallback
   const ltsCB=LTS.filter(l=>{
     const cb=(l.cartao||'').trim().toUpperCase();
     const nm=c.nome.trim().toUpperCase();
-    const nomeMatch=cb===nm||cb===nm.replace(/^CB0*/,'CB');
-    if(!nomeMatch)return false;
+    const match=cb===nm||cb===nm.replace(/^CB0*/,'CB');
+    if(!match)return false;
     if(c.area)return(l.area||'').trim()===c.area.trim();
     return true;
   }).map(l=>{
     let tag=l.tag||'';
+    // 1. Tentar pelo cronograma via OS
     if(!tag&&l.os){
       for(const cr of CRONOS_LIST){
         const t=(cr.tarefas||[]).find(t=>t.os&&t.os.trim().toUpperCase()===l.os.trim().toUpperCase());
         if(t&&t.tag){tag=t.tag;break;}
       }
     }
-    return {...l,_tag:tag};
+    // 2. Fallback: usar o equipamento (primeiros chars antes de espaço)
+    if(!tag&&l.equip){
+      tag=l.equip.trim().split(/\s/)[0].substring(0,12);
+    }
+    return{...l,_tag:tag};
   });
 
-  const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
-  doc.setProperties({title:'Cartao Bloqueador '+c.nome,subject:c.desc||'',creator:'Controle LT Suzano'});
+  const PRETO=[0,0,0],AZUL=[25,50,200],CINZA=[215,215,215],
+        BORDA=[160,160,160],BRANCO=[255,255,255],LIST=[246,246,250];
 
-  const PW=297,M=6,LH=8;
-  const PRETO=[0,0,0],AZUL=[25,50,200],CINZA=[215,215,215],BORDA=[150,150,150],
-        BRANCO=[255,255,255],LIST=[246,246,250];
+  const doc=new jsPDF({orientation:orient,unit:'mm',format:'a4'});
+  doc.setProperties({title:'Cartão Bloqueador '+cbNum,subject:linha2,creator:'Controle LT Suzano'});
+
+  const totalW=PW-M*2;
 
   function drawHeader(){
-    const w=PW-M*2;
+    // Borda exterior
     doc.setFillColor(255,255,255);
-    doc.rect(M,M,w,22,'F');
+    doc.rect(M,M,totalW,22,'F');
     doc.setDrawColor(...BORDA);doc.setLineWidth(0.5);
-    doc.rect(M,M,w,22);
-
-    // LINHA 1: usa exatamente o que foi digitado no modal (linha1)
+    doc.rect(M,M,totalW,22);
+    // Linha 1 — título centralizado
     doc.setFont('helvetica','bold');doc.setFontSize(11);
     doc.setTextColor(...PRETO);
-    doc.text(linha1, PW/2, M+8, {align:'center'});
-
-    // CB obrigatório destaque canto direito — usa cbNum do modal
+    doc.text(linha1,PW/2,M+8,{align:'center'});
+    // CB destaque canto direito
     doc.setFont('helvetica','bold');doc.setFontSize(22);
     doc.setTextColor(...AZUL);
-    doc.text(cbNum, M+w-2, M+9, {align:'right'});
-
-    // Linha separadora
+    doc.text(cbNum,M+totalW-2,M+9,{align:'right'});
+    // Divisória
     doc.setDrawColor(...BORDA);doc.setLineWidth(0.3);
-    doc.line(M,M+11,M+w,M+11);
-
-    // LINHA 2: usa exatamente o que foi digitado no modal (linha2)
-    doc.setFont('helvetica','bold');doc.setFontSize(15);
+    doc.line(M,M+11,M+totalW,M+11);
+    // Linha 2 — descrição grande
+    doc.setFont('helvetica','bold');doc.setFontSize(14);
     doc.setTextColor(...PRETO);
-    doc.text((linha2||'').substring(0,70), M+2, M+20, {maxWidth:w-4});
+    doc.text((linha2||'').substring(0,80),M+2,M+20,{maxWidth:totalW-36});
   }
 
   function drawTable(cols,rows,legenda){
     const y0=M+26;
-    const totalW=PW-M*2;
     const totP=cols.reduce((s,col)=>s+col.p,0);
     let xA=M;
     const C=cols.map(col=>{const w=(col.p/totP)*totalW;const o={...col,x:xA,w};xA+=w;return o;});
-
-    // Cabecalho colunas
-    doc.setFillColor(...CINZA);
-    doc.rect(M,y0,totalW,7,'F');
-    doc.setDrawColor(...BORDA);doc.setLineWidth(0.3);
-    doc.rect(M,y0,totalW,7);
-    doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(...PRETO);
+    // Cabeçalho
+    doc.setFillColor(...CINZA);doc.rect(M,y0,totalW,7,'F');
+    doc.setDrawColor(...BORDA);doc.setLineWidth(0.3);doc.rect(M,y0,totalW,7);
+    doc.setFont('helvetica','bold');doc.setFontSize(isPortrait?6.5:7);doc.setTextColor(...PRETO);
     C.forEach((col,i)=>{
-      doc.text(col.l, col.x+1, y0+5, {maxWidth:col.w-2});
-      if(i<C.length-1) doc.line(col.x+col.w,y0,col.x+col.w,y0+7);
+      doc.text(col.l,col.x+1,y0+5,{maxWidth:col.w-2});
+      if(i<C.length-1)doc.line(col.x+col.w,y0,col.x+col.w,y0+7);
     });
-
-    // Linhas de dados + em branco
+    // Linhas
     const data=[...rows];
-    while(data.length<MIN_ROWS) data.push(null);
+    while(data.length<MIN_ROWS)data.push(null);
     let yR=y0+7;
-    doc.setFont('helvetica','normal');doc.setFontSize(7);
+    doc.setFont('helvetica','normal');doc.setFontSize(isPortrait?6.5:7);
     data.forEach((row,i)=>{
       doc.setFillColor(...(i%2===0?LIST:BRANCO));
       doc.rect(M,yR,totalW,LH,'F');
       doc.setDrawColor(...BORDA);doc.rect(M,yR,totalW,LH);
       C.forEach((col,ci)=>{
-        if(ci<C.length-1) doc.line(col.x+col.w,yR,col.x+col.w,yR+LH);
+        if(ci<C.length-1)doc.line(col.x+col.w,yR,col.x+col.w,yR+LH);
         if(row&&row[ci]!=null&&String(row[ci]).trim()!==''){
           doc.setTextColor(...PRETO);
-          doc.text(String(row[ci]).substring(0,60),col.x+1,yR+5.5,{maxWidth:col.w-2});
+          doc.text(String(row[ci]).substring(0,55),col.x+1,yR+5.5,{maxWidth:col.w-2});
         }
       });
       yR+=LH;
     });
+    // Legenda rodapé
     doc.setFont('helvetica','italic');doc.setFontSize(6);
     doc.setTextColor(90,90,90);
     doc.text(legenda,M+1,yR+4);
   }
 
-  // PAGINA 1: FONTES DE ENERGIA
+  function drawBlankPage(titulo){
+    drawHeader();
+    const y0=M+26;
+    doc.setFillColor(...CINZA);doc.rect(M,y0,totalW,7,'F');
+    doc.setDrawColor(...BORDA);doc.setLineWidth(0.3);doc.rect(M,y0,totalW,7);
+    doc.setFont('helvetica','bold');doc.setFontSize(7);doc.setTextColor(...PRETO);
+    doc.text(titulo,M+1,y0+5);
+    let yR=y0+7;
+    for(let i=0;i<MIN_ROWS;i++){
+      doc.setFillColor(...(i%2===0?LIST:BRANCO));
+      doc.rect(M,yR,totalW,LH,'F');
+      doc.setDrawColor(...BORDA);doc.rect(M,yR,totalW,LH);
+      yR+=LH;
+    }
+    doc.setFont('helvetica','italic');doc.setFontSize(6);
+    doc.setTextColor(90,90,90);
+    doc.text('Página em branco para preenchimento manual',M+1,yR+4);
+  }
+
+  // Página 1 — Fontes de Energia
   drawHeader();
   drawTable(
-    [{l:'TAG',p:12},{l:'FONTES DE ENERGIA',p:54},{l:'No CARTAO',p:16},{l:'B',p:5},{l:'D',p:5}],
+    isPortrait
+      ?[{l:'TAG',p:14},{l:'FONTES DE ENERGIA',p:52},{l:'Nº CARTÃO',p:18},{l:'B',p:6},{l:'D',p:6}]
+      :[{l:'TAG',p:12},{l:'FONTES DE ENERGIA',p:54},{l:'Nº CARTÃO',p:16},{l:'B',p:5},{l:'D',p:5}],
     c.fontes.map(f=>[f.tag||'',f.desc||'',f.num||'','','']),
     'B: Bloqueado e testado    D: Fonte liberada para desbloqueio'
   );
 
-  // PAGINA 2: ATIVIDADES EXTERNAS
+  // Página 2 — Atividades / LTs
   doc.addPage();
   drawHeader();
   drawTable(
-    [{l:'TAG',p:11},{l:'DESCRICAO DAS ATIVIDADES EXTERNAS',p:44},{l:'No LT',p:13},{l:'EXEC. LIDER',p:14},{l:'EMPRESA',p:13},{l:'A',p:5},{l:'E',p:5}],
+    isPortrait
+      ?[{l:'TAG',p:12},{l:'DESC. ATIVIDADES EXTERNAS',p:40},{l:'Nº LT',p:14},{l:'EXEC. LÍDER',p:14},{l:'EMPRESA',p:14},{l:'A',p:6},{l:'E',p:6}]
+      :[{l:'TAG',p:11},{l:'DESC. ATIVIDADES EXTERNAS',p:44},{l:'Nº LT',p:13},{l:'EXEC. LÍDER',p:14},{l:'EMPRESA',p:13},{l:'A',p:5},{l:'E',p:5}],
     ltsCB.map(l=>[l._tag||'',l.desc||l.equip||'',l.num||'',l.lider||'',l.empresa||'','','']),
     'A: LT autorizada    E: LT encerrada'
   );
 
-  const fname='CartaoBloqueador_'+c.nome+'_'+new Date().toISOString().slice(0,10)+'.pdf';
+  // Páginas extras em branco
+  for(let i=0;i<extraPages;i++){
+    doc.addPage();
+    drawBlankPage('PREENCHIMENTO ADICIONAL — PÁGINA '+(i+1));
+  }
+
+  const fname='CartaoBloqueador_'+cbNum+'_'+new Date().toISOString().slice(0,10)+'.pdf';
   try{
     if(navigator.share&&navigator.canShare){
       const blob=doc.output('blob');
       const file=new File([blob],fname,{type:'application/pdf'});
       if(navigator.canShare({files:[file]})){
-        await navigator.share({files:[file],title:'Cartao Bloqueador '+c.nome});
-        toast('Pg.1=Fontes  Pg.2=Atividades');return;
+        await navigator.share({files:[file],title:'Cartão Bloqueador '+cbNum});
+        toast('✔ PDF compartilhado!');return;
       }
     }
     doc.save(fname);
-    toast('PDF salvo! Pg.1=Fontes de Energia  Pg.2=Atividades');
-  }catch(err){if(err.name!=='AbortError')toast('Erro: '+err.message,'err');}
+    toast('✔ PDF salvo! Pg.1=Fontes  Pg.2=Atividades'+(extraPages>0?'  +'+extraPages+' extra(s)':''));
+  }catch(err){if(err.name!=='AbortError')toast('⚠️ Erro: '+err.message,'err');}
 }
+
 
 
 
