@@ -1759,8 +1759,8 @@ function applyMap(){
 
 // ═══ PDF / SHARE ════════════════════════════════════════════════════
 function buildPDF(rows,title){
-  if(typeof jspdf==='undefined'||!window.jspdf){throw new Error('jsPDF não carregado. Abra no browser.');}
-  const{jsPDF}=window.jspdf;
+  if(typeof jspdf==='undefined'&&!window.jsPDF){throw new Error('jsPDF não carregado.');}
+  const {jsPDF}=window.jspdf||{jsPDF:window.jsPDF};
   const doc=new jsPDF({orientation:'landscape',unit:'mm',format:'a4'});
   doc.setFillColor(25,50,200);doc.rect(0,0,297,18,'F');
   doc.setTextColor(200,145,15);doc.setFont('helvetica','bold');doc.setFontSize(13);
@@ -2127,8 +2127,16 @@ function confirmarPDF(){
 
 async function compartilharCBPDF(linha1Param,linha2Param,cbNumParam,minRowsParam){
   const c=getCB();if(!c)return;
-  if(!window.jspdf){toast('⚠️ jsPDF não carregado','err');return;}
-  const {jsPDF}=window.jspdf;
+
+  // Aguardar jsPDF carregar (até 3s)
+  let tentativas=0;
+  while(!window.jspdf&&!window.jsPDF&&tentativas<15){
+    await new Promise(r=>setTimeout(r,200));tentativas++;
+  }
+  const jsPDFLib=(window.jspdf?.jsPDF)||(window.jsPDF);
+  if(!jsPDFLib){toast('⚠️ jsPDF não carregou. Recarregue a página.','err');return;}
+
+  const {jsPDF}=window.jspdf||{jsPDF:jsPDFLib};
 
   // Parâmetros do cabeçalho (editáveis via modal)
   const linha1=linha1Param||(c.desc?'CARTÃO BLOQUEADOR: '+c.desc.trim().split(/[\s\-]/)[0].toUpperCase():'CARTÃO BLOQUEADOR: SUZANO');
