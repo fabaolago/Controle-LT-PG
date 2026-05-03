@@ -2055,19 +2055,32 @@ function importarCBExcel(e){
         if(!shName.toUpperCase().includes('CB') && !shName.toUpperCase().includes('CART')) return;
         const ws = wb.Sheets[shName];
         const json = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, defval:''});
-        // Extrair nome do cartão e descrição do equipamento
+        
+        // Estrutura Suzano:
+        // Linha 1: "CARTÃO BLOQUEADOR: DDW" (título — ignorar)
+        // Linha 2: "325LR504 -DDW504/PERIFÉRICOS" (col A) + "CB01" (col C)
+        // Linha 3: vazia
+        // Linha 4: TAG | FONTES DE ENERGIA | Nº CARTÃO...
         let cbNome='', cbDesc='';
-        for(let i=0;i<Math.min(5,json.length);i++){
+        
+        for(let i=0;i<Math.min(6,json.length);i++){
           const row = json[i]||[];
-          // Linha com "CB01", "CB02" etc
-          const cbMatch = row.join(' ').match(/\bCB\d+\b/);
-          if(cbMatch && !cbNome) cbNome = cbMatch[0];
-          // Linha com descrição do equipamento (não é cabeçalho nem está vazia)
-          const rowText = row.filter(c=>c).join(' ').trim();
-          if(rowText && !cbNome && rowText.length>3) cbDesc = rowText;
-          if(cbNome && rowText && rowText !== cbNome) cbDesc = rowText;
+          const rowFull = row.map(v=>(v||'').toString().trim());
+          const rowText = rowFull.filter(Boolean).join(' ');
+          
+          // Buscar CB01, CB02 etc em qualquer célula da linha
+          const cbMatch = rowText.match(/\bCB\d+[A-Z]?\b/i);
+          if(cbMatch && !cbNome) cbNome = cbMatch[0].toUpperCase();
+          
+          // Linha 2 (índice 1): primeira célula longa = descrição do equipamento
+          if(i===1 && rowFull[0] && rowFull[0].length > 3 && !rowFull[0].toLowerCase().includes('cartão')){
+            cbDesc = rowFull[0];
+          }
         }
-        if(!cbNome) cbNome = shName.replace('CARTÃO BLOQUEADOR ','').trim();
+        // Fallback: usar nome da aba
+        if(!cbNome) cbNome = shName.replace(/CARTÃO BLOQUEADOR\s*/i,'').trim()||shName;
+        // Se cbDesc veio vazio, usar nome do cartão
+        if(!cbDesc) cbDesc = cbNome;
         // Encontrar linha de cabeçalho TAG/FONTES
         let hRow = -1;
         for(let i=0;i<Math.min(10,json.length);i++){
@@ -2108,7 +2121,10 @@ function importarCBExcel(e){
 // PDF do cartão
 function abrirModalPDF(){
   const c=getCB();if(!c)return;
-  const titulo=linha1;
+  // Linha 1: título baseado no campo desc do cartão (não da fonte)
+  const titulo=c.desc
+    ?'CARTÃO BLOQUEADOR: '+c.desc.trim().split(/[\s\-]/)[0].toUpperCase()
+    :'CARTÃO BLOQUEADOR: SUZANO';
   document.getElementById('pdf-linha1').value=titulo;
   document.getElementById('pdf-linha2').value=c.desc||c.nome;
   document.getElementById('pdf-cbnum').value=c.nome;
