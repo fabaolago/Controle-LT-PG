@@ -3,6 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#1932c8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Controle LT">
+<link rel="manifest" href="manifest.json">
 <title>Controle de LTs — Parada Geral Suzano</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
@@ -1307,9 +1312,11 @@ function salvarLT(){
   } else {
     LTS.push(obj);
   }
-  if(window._fbOk&&window._fbSave){
+  if(window._fbOk&&window._fbSave&&navigator.onLine){
     syncBar(true);
     window._fbSave(obj).then(()=>syncBar(false)).catch(e=>{syncBar(false);toast('⚠️ Erro sync: '+e.message,'err');});
+  } else if(!navigator.onLine){
+    sv();addToQueue({tipo:'save',id:obj.id,data:obj});toast('📴 Salvo localmente — sincroniza ao conectar');
   } else {sv();}
   limparForm();toast('✔ LT salva!');
   if(!window._fbOk)render();
@@ -1339,9 +1346,11 @@ function editLT(id){
 function delLT(id){
   const l=LTS.find(x=>x.id===id);if(!l||!confirm('Excluir LT '+l.num+'?'))return;
   LTS=LTS.filter(x=>x.id!==id);
-  if(window._fbOk&&window._fbDel){
+  if(window._fbOk&&window._fbDel&&navigator.onLine){
     syncBar(true);
     window._fbDel(l).then(()=>syncBar(false)).catch(e=>{syncBar(false);toast('⚠️ Erro: '+e.message,'err');});
+  } else if(!navigator.onLine){
+    sv();addToQueue({tipo:'del',id:l.id,data:l});toast('📴 Excluído localmente — sincroniza ao conectar');
   } else {sv();render();}
   toast('🗑️ LT excluída.');
   if(!window._fbOk)render();
@@ -1360,10 +1369,11 @@ function saveMSts(){
   l.status=document.getElementById('mstssel').value;
   const obs=document.getElementById('mobs').value.trim();if(obs)l.obs=obs;
   document.getElementById('msts').classList.remove('on');
-  if(window._fbOk&&window._fbSave){
-    // _fbKey já está em l (veio do Firebase via onValue)
+  if(window._fbOk&&window._fbSave&&navigator.onLine){
     syncBar(true);
     window._fbSave(l).then(()=>syncBar(false)).catch(e=>{syncBar(false);toast('⚠️ Erro: '+e.message,'err');});
+  } else if(!navigator.onLine){
+    sv();addToQueue({tipo:'save',id:l.id,data:l});toast('📴 Status salvo localmente — sincroniza ao conectar');
   } else {sv();render();}
   toast('✔ Status atualizado!');
   if(!window._fbOk)render();
@@ -2411,6 +2421,66 @@ let _starVal = 0;
     }catch(e){}
   }
 })();
+
+// ═══ SERVICE WORKER & OFFLINE ══════════════════════════════════
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('sw.js')
+    .then(r=>console.log('SW ok:',r.scope))
+    .catch(e=>console.log('SW erro:',e));
+}
+function updOnlineStatus(){
+  const online=navigator.onLine;
+  const el=document.getElementById('fbst');
+  if(el&&!online){el.textContent='🔴 Offline';el.style.color='#b44b5a';}
+  if(online)syncPendingQueue();
+}
+window.addEventListener('online',updOnlineStatus);
+window.addEventListener('offline',updOnlineStatus);
+
+// ═══ FILA OFFLINE ══════════════════════════════════════════════
+const QUEUE_KEY='lt_pending_queue';
+function getQueue(){return JSON.parse(localStorage.getItem(QUEUE_KEY)||'[]');}
+function saveQueue(q){localStorage.setItem(QUEUE_KEY,JSON.stringify(q));}
+function addToQueue(op){
+  const q=getQueue();
+  const idx=q.findIndex(x=>x.id===op.id&&x.tipo===op.tipo);
+  if(idx>=0)q[idx]=op;else q.push(op);
+  saveQueue(q);showQueueBadge(q.length);
+}
+function showQueueBadge(n){
+  let b=document.getElementById('queue-badge');
+  if(!b){
+    b=document.createElement('div');b.id='queue-badge';
+    b.style.cssText='position:fixed;bottom:22px;left:16px;z-index:500;background:#c8910f;'+
+      'color:#000;font-family:var(--fh);font-size:11px;font-weight:800;padding:5px 10px;'+
+      'border-radius:14px;display:none;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.4)';
+    b.onclick=syncPendingQueue;
+    document.body.appendChild(b);
+  }
+  if(n>0){b.textContent='⏳ '+n+' pendente'+(n>1?'s':'')+' — toque p/ sincronizar';b.style.display='block';}
+  else b.style.display='none';
+}
+async function syncPendingQueue(){
+  if(!navigator.onLine||!window._fbOk)return;
+  const q=getQueue();if(!q.length){showQueueBadge(0);return;}
+  toast('⏳ Sincronizando '+q.length+' operação(ões)...');
+  const failed=[];
+  for(const op of q){
+    try{
+      if(op.tipo==='save'&&window._fbSave)await window._fbSave(op.data);
+      else if(op.tipo==='del'&&window._fbDel)await window._fbDel(op.data);
+      else if(op.tipo==='cronos'&&window._fbSaveCronosList)await window._fbSaveCronosList(op.data);
+      else if(op.tipo==='cb'&&window._fbSaveCBList)await window._fbSaveCBList(op.data);
+    }catch(e){failed.push(op);}
+  }
+  saveQueue(failed);showQueueBadge(failed.length);
+  if(!failed.length)toast('✔ Tudo sincronizado!');
+  else toast('⚠️ '+failed.length+' falharam — tentando depois','err');
+}
+window.addEventListener('load',()=>{
+  const q=getQueue();if(q.length)showQueueBadge(q.length);
+  if(navigator.onLine)setTimeout(syncPendingQueue,3000);
+});
 
 function abrirFeedback(){
   _starVal=0;
