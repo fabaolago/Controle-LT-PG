@@ -1,0 +1,20 @@
+{
+  "name": "Controle de LTs — Parada Geral Suzano",
+  "short_name": "Controle LT",
+  "description": "Gestão de Liberações de Trabalho para Parada Geral",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#0a0e17",
+  "theme_color": "#1932c8",
+  "orientation": "any",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' fill='%231932c8'/><text x='50%' y='58%' dominant-baseline='middle' text-anchor='middle' font-size='100' font-weight='bold' font-family='sans-serif' fill='%23c8910f'>LT</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "utilities"]
+}
