@@ -2543,350 +2543,127 @@ let _starVal = 0;
 
 // ═══ HIDROJATO ════════════════════════════════════════════════════
 const HJ_KEY='hidrojato-lt-state';
+
+// Estrutura dos setores
+// sub: subitens fixos de cada item
+// circ: se tem Circulação nos Periféricos
 const HJ_SECTORS=[
-  {id:'322LR201',items:['Tambor','Periféricos','Canaletas','Selagem montada'],circ:true},
-  {id:'322LR202',items:['Tambor','Periféricos','Canaletas','Selagem montada'],circ:true},
-  {id:'324LR401',items:['Periféricos','Selagem montada'],circ:true},
-  {id:'324LR402',items:['Tambor','Periféricos','Canaletas','Selagem montada'],circ:true},
-  {id:'325LR501',items:['Tambor','Periféricos','Canaletas','Selagem montada'],circ:false},
-  {id:'325LR502',items:['Tambor','Periféricos','Canaletas','Selagem montada'],circ:false},
-  {id:'325LR503',items:['Tambor','Periféricos','Canaletas','Selagem montada'],circ:false},
-  {id:'325LR504',items:['Tambor','Periféricos','Canaletas','Selagem montada'],circ:false},
+  {id:'322LR201',circ:true},
+  {id:'322LR202',circ:true},
+  {id:'324LR401',circ:true},
+  {id:'324LR402',circ:true},
+  {id:'325LR501',circ:false},
+  {id:'325LR502',circ:false},
+  {id:'325LR503',circ:false},
+  {id:'325LR504',circ:false},
 ];
-// Subitens por item principal
-const HJ_SUBS={
-  'Selagem montada':['Ar instrumento','Água de selagem'],
-  'Canaletas':['LA','LOA'],
-  'Periféricos':['Plug esquerda','Plug direita','Plug superior'],
-};
-// Circulações — só nos setores com circ:true
-const HJ_CIRC=['Circulação'];
+
+// Itens e seus subitens
+function hjGetItems(sec){
+  const items=[];
+  // Tambor (sem sub) — todos exceto 324LR401
+  if(sec.id!=='324LR401') items.push({key:'Tambor',subs:[]});
+  // Periféricos
+  const perfSubs=['Plug esquerda','Plug direita','Plug superior'];
+  if(sec.circ) perfSubs.push('Circulação');
+  items.push({key:'Periféricos',subs:perfSubs});
+  // Canaletas — todos exceto 324LR401
+  if(sec.id!=='324LR401') items.push({key:'Canaletas',subs:['LA','LOA']});
+  // Selagem montada
+  items.push({key:'Selagem montada',subs:['Ar instrumento','Água de selagem']});
+  return items;
+}
 
 let hjState={};
 let hjOperator='';
-
-function hjGetSubs(sec,item){
-  const subs=[...(HJ_SUBS[item]||[])];
-  if(item==='Periféricos'&&sec.circ) subs.push(...HJ_CIRC);
-  return subs;
-}
+let hjObsTimer=null;
 
 function hjBuildInitial(){
   const s={};
   HJ_SECTORS.forEach(sec=>{
     s[sec.id]={};
-    sec.items.forEach(item=>{
-      s[sec.id][item]={checked:false,who:null,when:null};
-      hjGetSubs(sec,item).forEach(sub=>{
-        s[sec.id][sub+'__'+item]={checked:false,who:null,when:null};
-      });
+    hjGetItems(sec).forEach(item=>{
+      if(item.subs.length===0){
+        s[sec.id][item.key]={checked:false,who:null,when:null};
+      } else {
+        item.subs.forEach(sub=>{
+          s[sec.id][item.key+'|||'+sub]={checked:false,who:null,when:null};
+        });
+      }
+      s[sec.id]['obs|||'+item.key]='';
     });
-    // obs por item
-    sec.items.forEach(item=>{s[sec.id]['obs__'+item]='';});
   });
   return s;
 }
 
-function hjSubKey(item,sub){return sub+'__'+item;}
-function hjObsKey(item){return 'obs__'+item;}
-
-function hjToggle(secId,item,sub){
-  if(!hjOperator){toast('⚠️ Confirme seu nome primeiro!','err');return;}
-  const key=sub?hjSubKey(item,sub):item;
-  if(!hjState[secId][key])hjState[secId][key]={checked:false,who:null,when:null};
-  const cur=hjState[secId][key];
-  const nowChecked=!cur.checked;
-  hjState[secId][key]=nowChecked
-    ?{checked:true,who:hjOperator,when:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}
-    :{checked:false,who:null,when:null};
-  // Ao desmarcar item pai, desmarca subitens
-  if(!sub&&!nowChecked){
-    const sec=HJ_SECTORS.find(s=>s.id===secId);
-    if(sec) hjGetSubs(sec,item).forEach(s2=>{hjState[secId][hjSubKey(item,s2)]={checked:false,who:null,when:null};});
-  }
-  hjRender();hjSave();
-}
-
-function hjSetObs(secId,item,val){
-  hjState[secId][hjObsKey(item)]=val;
-  // Salvar com debounce
-  clearTimeout(hjState._obsTimer);
-  hjState._obsTimer=setTimeout(()=>hjSave(),800);
-}
-
-function hjReset(){
-  if(!confirm('Resetar todo o checklist Hidrojato?'))return;
-  hjState=hjBuildInitial();
-  hjRender();hjSave();
-  toast('✔ Checklist Hidrojato resetado!');
-}
-
-function hjConfirmName(){
-  const v=document.getElementById('hj-name-inp').value.trim();
-  if(!v)return;
-  hjOperator=v;
-  document.getElementById('hj-op-name').textContent=v;
-  document.getElementById('hj-op-confirmed').style.display='flex';
-  document.getElementById('hj-op-form').style.display='none';
-}
-function hjChangeName(){
-  hjOperator='';
-  document.getElementById('hj-op-confirmed').style.display='none';
-  document.getElementById('hj-op-form').style.display='flex';
-  document.getElementById('hj-name-inp').value='';
-}
-
-function hjProgress(){
-  let total=0,done=0;
-  HJ_SECTORS.forEach(sec=>{
-    sec.items.forEach(item=>{
-      const subs=hjGetSubs(sec,item);
-      if(subs.length){
-        subs.forEach(sub=>{
-          total++;
-          if(hjState[sec.id]?.[hjSubKey(item,sub)]?.checked)done++;
-        });
-      } else {
-        total++;
-        if(hjState[sec.id]?.[item]?.checked)done++;
-      }
-    });
-  });
-  return{total,done};
-}
-
-function hjRender(){
-  const{total,done}=hjProgress();
-  const pct=total?Math.round(done/total*100):0;
-  const fill=document.getElementById('hj-fill');
-  const prog=document.getElementById('hj-prog');
-  if(fill)fill.style.width=pct+'%';
-  if(prog)prog.textContent=done+' / '+total+' itens ('+pct+'%)';
-
-  const cont=document.getElementById('hj-sectors');
-  if(!cont)return;
-
-  // Guardar obs abertas antes de re-renderizar
-  const obsVals={};
-  cont.querySelectorAll('textarea[data-obs]').forEach(ta=>{
-    obsVals[ta.dataset.obs]=ta.value;
-  });
-
-  cont.innerHTML=HJ_SECTORS.map(sec=>{
-    const ss=hjState[sec.id]||{};
-
-    // allDone: todos os subitens (ou itens sem sub) marcados
-    const allDone=sec.items.every(item=>{
-      const subs=hjGetSubs(sec,item);
-      if(subs.length) return subs.every(sub=>ss[hjSubKey(item,sub)]?.checked);
-      return ss[item]?.checked;
-    });
-
-    const itemsHTML=sec.items.map((item,idx)=>{
-      const d=ss[item]||{};
-      const subs=hjGetSubs(sec,item);
-      const hasSubs=subs.length>0;
-      const isLast=idx===sec.items.length-1;
-      const isSel=item==='Selagem montada';
-      const isCan=item==='Canaletas';
-      const isPer=item==='Periféricos';
-
-      // Item pai: se tem subs, checked = todos subs marcados
-      const allSubsDone=hasSubs&&subs.every(sub=>ss[hjSubKey(item,sub)]?.checked);
-      const someSubsDone=hasSubs&&subs.some(sub=>ss[hjSubKey(item,sub)]?.checked);
-      const itemChecked=hasSubs?allSubsDone:d.checked;
-      const itemPartial=hasSubs&&someSubsDone&&!allSubsDone;
-
-      const chkCls=itemChecked?'ok':itemPartial?'sel':'';
-      const chkLabel=itemChecked?'✓':itemPartial?'~':'';
-      const labelCls=itemChecked?'done':'';
-      const rowBg=itemChecked?'rgba(63,185,80,.04)':itemPartial?'rgba(251,191,36,.03)':'transparent';
-      const border='border-bottom:1px solid #21262d;';
-
-      const subCount=hasSubs?`<span style="font-size:.58rem;color:#7d8590;margin-left:auto">
-        ${subs.filter(s=>ss[hjSubKey(item,s)]?.checked).length}/${subs.length}</span>`:'';
-
-      // Clique no pai: se tem subs, não faz toggle direto — só visual
-      const onclickPai=hasSubs
-        ?`hjTogglePai('${sec.id}','${item.replace(/'/g,"\\'")}')`
-        :`hjToggle('${sec.id}','${item.replace(/'/g,"\\'")}',null)`;
-
-      const obs=ss[hjObsKey(item)]||'';
-      const obsKey=`${sec.id}__${item}`;
-
-      let html=`
-        <div class="hj-row" onclick="${onclickPai}" style="background:${rowBg};${border}">
-          <div class="hj-check ${chkCls}">${chkLabel}</div>
-          <span class="hj-label ${labelCls}">${item}</span>
-          ${subCount}
-          ${d.who&&!hasSubs?`<span style="font-size:.55rem;color:#7d8590">${d.who} ${d.when||''}</span>`:''}
-        </div>`;
-
-      // Subitens
-      if(hasSubs){
-        html+=`<div class="hj-sub" style="background:rgba(0,200,255,.02)">`;
-        subs.forEach((sub,si)=>{
-          const sk=hjSubKey(item,sub);
-          const sd=ss[sk]||{};
-          const subColor=isSel?'#c9a227':isCan?'#00c8ff':isPer?'#a78bfa':'#e6edf3';
-          const subBorder=si<subs.length-1?'border-bottom:1px solid rgba(255,255,255,.05);':'';
-          html+=`<div class="hj-row" onclick="hjToggle('${sec.id}','${item.replace(/'/g,"\\'")}','${sub.replace(/'/g,"\\'")}')"
-            style="${subBorder}background:${sd.checked?'rgba(63,185,80,.04)':'transparent'}">
-            <div class="hj-check ${sd.checked?'ok':''}" style="width:18px;height:18px;font-size:11px;border-color:${sd.checked?'#3fb950':'#4d5562'}">${sd.checked?'✓':''}</div>
-            <span class="hj-label ${sd.checked?'done':''}" style="font-size:.78rem;color:${sd.checked?'#7d8590':subColor}">${sub}</span>
-            ${sd.who?`<span style="font-size:.55rem;color:#7d8590">${sd.who} ${sd.when||''}</span>`:''}
-          </div>`;
-        });
-        html+=`</div>`;
-      }
-
-      // Campo observação expansível
-      html+=`<div style="padding:4px 14px 6px;border-bottom:${!isLast?'1px solid #21262d':'none'}">
-        <textarea data-obs="${obsKey}"
-          oninput="hjSetObs('${sec.id}','${item.replace(/'/g,"\\'")}',this.value)"
-          placeholder="Observação sobre ${item}..."
-          style="width:100%;background:#0d1117;border:1px solid #21262d;border-radius:5px;
-          color:#7d8590;font-family:'IBM Plex Mono',monospace;font-size:.7rem;padding:5px 8px;
-          resize:none;min-height:28px;overflow:hidden;outline:none;transition:border-color .2s;line-height:1.4"
-          onfocus="this.style.borderColor='#00c8ff';this.style.color='#e6edf3'"
-          onblur="this.style.borderColor='#21262d';this.style.color=this.value?'#e6edf3':'#7d8590'"
-          rows="1"
-          oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px';hjSetObs('${sec.id}','${item.replace(/'/g,"\\'")}',this.value)"
-        >${obs}</textarea>
-      </div>`;
-
-      return html;
-    }).join('');
-
-    return`<div class="hj-sector${allDone?' done':''}">
-      <div class="hj-sec-head">
-        <span class="hj-sec-name">${sec.id}</span>
-        <span class="hj-badge">${allDone?'CONCLUÍDO ✓':'PENDENTE'}</span>
-      </div>
-      ${itemsHTML}
-    </div>`;
-  }).join('');
-
-  // Restaurar alturas dos textareas
-  cont.querySelectorAll('textarea[data-obs]').forEach(ta=>{
-    ta.style.height='auto';
-    ta.style.height=ta.scrollHeight+'px';
-  });
-}
-
-// Toggle pai: marca/desmarca todos os subitens de uma vez
-function hjTogglePai(secId,item){
-  if(!hjOperator){toast('⚠️ Confirme seu nome primeiro!','err');return;}
-  const sec=HJ_SECTORS.find(s=>s.id===secId);if(!sec)return;
-  const subs=hjGetSubs(sec,item);
-  const allDone=subs.every(s=>hjState[secId][hjSubKey(item,s)]?.checked);
-  const now=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-  subs.forEach(sub=>{
-    hjState[secId][hjSubKey(item,sub)]=!allDone
-      ?{checked:true,who:hjOperator,when:now}
-      :{checked:false,who:null,when:null};
-  });
-  hjRender();hjSave();
-}
-
-function hjWhatsApp(){
-  const now=new Date();
-  let msg=`💧 *HIDROJATO – RELATÓRIO*\n`;
-  msg+=`👷 Operador: *${hjOperator||'—'}*\n`;
-  msg+=`📅 ${now.toLocaleDateString('pt-BR')} às ${now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}\n`;
-  msg+=`─────────────────────\n\n`;
-  HJ_SECTORS.forEach(sec=>{
-    const ss=hjState[sec.id]||{};
-    const allDone=sec.items.every(item=>{
-      const subs=hjGetSubs(sec,item);
-      if(subs.length) return subs.every(sub=>ss[hjSubKey(item,sub)]?.checked);
-      return ss[item]?.checked;
-    });
-    msg+=`${allDone?'✅':'🔄'} *${sec.id}*\n`;
-    sec.items.forEach(item=>{
-      const subs=hjGetSubs(sec,item);
-      if(subs.length){
-        const allS=subs.every(s=>ss[hjSubKey(item,s)]?.checked);
-        msg+=`  ${allS?'☑':'☐'} ${item}\n`;
-        subs.forEach(sub=>{
-          const sd=ss[hjSubKey(item,sub)]||{};
-          msg+=`    ${sd.checked?'☑':'☐'} ${sub}\n`;
-        });
-      } else {
-        const d=ss[item]||{};
-        msg+=`  ${d.checked?'☑':'☐'} ${item}\n`;
-      }
-      const obs=ss[hjObsKey(item)];
-      if(obs) msg+=`    📝 ${obs}\n`;
-    });
-    msg+='\n';
-  });
-  const{total,done}=hjProgress();
-  msg+=`─────────────────────\n📊 *Progresso: ${done}/${total} (${Math.round(done/total*100)}%)*`;
-  window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
-}
-
 function hjLoad(){
+  const local=localStorage.getItem(HJ_KEY);
+  hjState=local?JSON.parse(local):hjBuildInitial();
+  // Firebase sync
   if(window._fbOk){
     try{
-      firebase.database().ref('hidrojato/state').once('value').then(snap=>{
+      firebase.database().ref('hidrojato/state').on('value',snap=>{
         const v=snap.val();
-        hjState=v?JSON.parse(v):hjBuildInitial();
-        hjRender();
-        firebase.database().ref('hidrojato/state').on('value',s2=>{
-          const v2=s2.val();
-          if(v2){hjState=JSON.parse(v2);hjRender();}
-        });
-      }).catch(()=>{
-        hjState=JSON.parse(localStorage.getItem(HJ_KEY)||'null')||hjBuildInitial();
+        if(v){hjState=JSON.parse(v);localStorage.setItem(HJ_KEY,v);}
         hjRender();
       });
-    }catch(e){
-      hjState=JSON.parse(localStorage.getItem(HJ_KEY)||'null')||hjBuildInitial();
-      hjRender();
-    }
-  } else {
-    hjState=JSON.parse(localStorage.getItem(HJ_KEY)||'null')||hjBuildInitial();
-    hjRender();
-  }
+    }catch(e){hjRender();}
+  } else {hjRender();}
 }
 
 async function hjSave(){
-  document.getElementById('hj-saving').style.display='inline-block';
   const str=JSON.stringify(hjState);
   localStorage.setItem(HJ_KEY,str);
+  const el=document.getElementById('hj-saving');
+  if(el)el.style.display='inline-block';
   if(window._fbOk){
     try{await firebase.database().ref('hidrojato/state').set(str);}catch(e){}
   }
-  document.getElementById('hj-saving').style.display='none';
-  const el=document.getElementById('hj-sync-lbl');
-  if(el)el.textContent='sync '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  if(el)el.style.display='none';
+  const lbl=document.getElementById('hj-sync-lbl');
+  if(lbl)lbl.textContent='sync '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
 }
 
-function hjToggle(secId,item){
+function hjToggle(secId,stateKey){
   if(!hjOperator){toast('⚠️ Confirme seu nome primeiro!','err');return;}
-  const cur=hjState[secId][item];
-  const nowChecked=!cur.checked;
-  hjState[secId][item]=nowChecked
+  if(!hjState[secId])hjState[secId]={};
+  const cur=hjState[secId][stateKey]||{checked:false};
+  const nowOn=!cur.checked;
+  hjState[secId][stateKey]=nowOn
     ?{checked:true,who:hjOperator,when:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}
     :{checked:false,who:null,when:null};
-  if(item==='Selagem montada'&&!nowChecked){
-    HJ_SUB.forEach(sub=>{hjState[secId][sub]={checked:false,who:null,when:null};});
-  }
-  hjRender();
-  hjSave();
+  hjSave();hjRender();
+}
+
+function hjToggleAll(secId,itemKey,subs,forceOff){
+  if(!hjOperator){toast('⚠️ Confirme seu nome primeiro!','err');return;}
+  if(!hjState[secId])hjState[secId]={};
+  const allOn=subs.every(s=>hjState[secId][itemKey+'|||'+s]?.checked);
+  const nowOn=forceOff?false:!allOn;
+  const when=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  subs.forEach(s=>{
+    hjState[secId][itemKey+'|||'+s]=nowOn
+      ?{checked:true,who:hjOperator,when}
+      :{checked:false,who:null,when:null};
+  });
+  hjSave();hjRender();
+}
+
+function hjSetObs(secId,itemKey,val){
+  if(!hjState[secId])hjState[secId]={};
+  hjState[secId]['obs|||'+itemKey]=val;
+  clearTimeout(hjObsTimer);
+  hjObsTimer=setTimeout(hjSave,800);
 }
 
 function hjReset(){
   if(!confirm('Resetar todo o checklist Hidrojato?'))return;
-  hjState=hjBuildInitial();
-  hjRender();hjSave();
-  toast('✔ Checklist Hidrojato resetado!');
+  hjState=hjBuildInitial();hjSave();hjRender();
+  toast('✔ Checklist resetado!');
 }
 
 function hjConfirmName(){
-  const v=document.getElementById('hj-name-inp').value.trim();
-  if(!v)return;
+  const v=document.getElementById('hj-name-inp').value.trim();if(!v)return;
   hjOperator=v;
   document.getElementById('hj-op-name').textContent=v;
   document.getElementById('hj-op-confirmed').style.display='flex';
@@ -2901,11 +2678,10 @@ function hjChangeName(){
 
 function hjProgress(){
   let total=0,done=0;
-  HJ_SECTORS.forEach(s=>{
-    s.items.forEach(item=>{
-      if(item==='Selagem montada')return;
-      total++;
-      if(hjState[s.id]?.[item]?.checked)done++;
+  HJ_SECTORS.forEach(sec=>{
+    hjGetItems(sec).forEach(item=>{
+      if(item.subs.length===0){total++;if(hjState[sec.id]?.[item.key]?.checked)done++;}
+      else{item.subs.forEach(s=>{total++;if(hjState[sec.id]?.[item.key+'|||'+s]?.checked)done++;});}
     });
   });
   return{total,done};
@@ -2920,58 +2696,140 @@ function hjRender(){
   if(fill)fill.style.width=pct+'%';
   if(prog)prog.textContent=done+' / '+total+' itens ('+pct+'%)';
 
-  // Setores
   const cont=document.getElementById('hj-sectors');
   if(!cont)return;
+
+  // Guardar obs antes de re-renderizar
+  const obsVals={};
+  cont.querySelectorAll('textarea[data-obskey]').forEach(ta=>{
+    obsVals[ta.dataset.obskey]=ta.value;
+  });
+
   cont.innerHTML=HJ_SECTORS.map(sec=>{
     const ss=hjState[sec.id]||{};
-    const allDone=sec.items.every(item=>{
-      if(!ss[item]?.checked)return false;
-      if(item==='Selagem montada')return HJ_SUB.every(sub=>ss[sub]?.checked);
-      return true;
+    const items=hjGetItems(sec);
+
+    // Setor concluído = todos itens/subs marcados
+    const allDone=items.every(item=>{
+      if(item.subs.length===0) return ss[item.key]?.checked;
+      return item.subs.every(s=>ss[item.key+'|||'+s]?.checked);
     });
-    const itemsHTML=sec.items.map((item,idx)=>{
-      const d=ss[item]||{};
-      const isSel=item==='Selagem montada';
-      const isLast=idx===sec.items.length-1;
-      const showSub=isSel&&d.checked;
-      const chkCls=d.checked?(isSel?'sel':'ok'):'';
-      const labelCls=d.checked?'done':'';
-      const border=(!isLast||showSub)?'border-bottom:1px solid #21262d;':'';
-      const rowBg=d.checked?(isSel?'rgba(251,191,36,.05)':'rgba(63,185,80,.04)'):'transparent';
-      let html=`<div class="hj-row" onclick="hjToggle('${sec.id}','${item.replace(/'/g,"\\'")}')"
-        style="background:${rowBg};${border}">
-        <div class="hj-check ${chkCls}">${d.checked?'✓':''}</div>
-        <span class="hj-label ${labelCls}">${item}</span>
-        ${isSel&&!d.checked?'<span style="font-size:.58rem;color:#fbbf24;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);padding:1px 6px;border-radius:10px">+2</span>':''}
-        ${isSel&&d.checked?'<span style="font-size:.58rem;color:#fbbf24">▼</span>':''}
-        ${d.who?`<span style="font-size:.55rem;color:#7d8590">${d.who} ${d.when||''}</span>`:''}
-      </div>`;
-      if(showSub){
-        html+=`<div class="hj-sub">`;
-        HJ_SUB.forEach((sub,si)=>{
-          const sd=ss[sub]||{};
-          const subBorder=si<HJ_SUB.length-1?'border-bottom:1px solid rgba(251,191,36,.1);':'';
-          html+=`<div class="hj-row" onclick="hjToggle('${sec.id}','${sub.replace(/'/g,"\\'")}')"
-            style="${subBorder}">
-            <div class="hj-check ${sd.checked?'sel':''}">${sd.checked?'✓':''}</div>
-            <span class="hj-label ${sd.checked?'done':''}" style="color:${sd.checked?'#7d8590':'#c9a227'}">${sub}</span>
-            ${sd.who?`<span style="font-size:.55rem;color:#7d8590">${sd.who} ${sd.when||''}</span>`:''}
+
+    const itemsHTML=items.map((item,idx)=>{
+      const isLast=idx===items.length-1;
+      const hasSubs=item.subs.length>0;
+      const obs=ss['obs|||'+item.key]||'';
+      const obsKey=sec.id+'|||'+item.key;
+
+      let itemDone,itemPartial;
+      if(!hasSubs){
+        itemDone=ss[item.key]?.checked;
+        itemPartial=false;
+      } else {
+        const doneCount=item.subs.filter(s=>ss[item.key+'|||'+s]?.checked).length;
+        itemDone=doneCount===item.subs.length;
+        itemPartial=doneCount>0&&!itemDone;
+      }
+
+      const chkColor=itemDone?'#3fb950':itemPartial?'#fbbf24':'#7d8590';
+      const chkBg=itemDone?'#3fb950':itemPartial?'#fbbf24':'transparent';
+      const chkLabel=itemDone?'✓':itemPartial?'~':'';
+      const labelColor=itemDone?'#7d8590':'#e6edf3';
+      const labelDecor=itemDone?'line-through':'none';
+      const rowBg=itemDone?'rgba(63,185,80,.05)':itemPartial?'rgba(251,191,36,.03)':'transparent';
+
+      const onclick=hasSubs
+        ?`hjToggleAll('${sec.id}','${item.key}',${JSON.stringify(item.subs)})`
+        :`hjToggle('${sec.id}','${item.key}')`;
+
+      const countBadge=hasSubs
+        ?`<span style="font-size:.6rem;color:#7d8590;margin-left:4px">${item.subs.filter(s=>ss[item.key+'|||'+s]?.checked).length}/${item.subs.length}</span>`
+        :'';
+
+      let html=`
+        <div style="border-bottom:1px solid #21262d">
+          <!-- item pai -->
+          <div onclick="${onclick}" style="display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer;background:${rowBg};user-select:none">
+            <div style="width:22px;height:22px;border:2px solid ${chkColor};border-radius:5px;flex-shrink:0;
+              display:flex;align-items:center;justify-content:center;background:${chkBg};
+              color:#000;font-size:13px;font-weight:700;transition:all .2s">${chkLabel}</div>
+            <span style="font-size:.82rem;font-family:'IBM Plex Mono',monospace;color:${labelColor};
+              text-decoration:${labelDecor};flex:1">${item.key}</span>
+            ${countBadge}
           </div>`;
+
+      // Subitens
+      if(hasSubs){
+        html+=`<div style="background:rgba(255,255,255,.02)">`;
+        item.subs.forEach((sub,si)=>{
+          const sk=item.key+'|||'+sub;
+          const sd=ss[sk]||{};
+          const subColor=sd.checked?'#7d8590':'#a8b8cc';
+          html+=`
+            <div onclick="hjToggle('${sec.id}','${sk.replace(/'/g,"\\'")}')"
+              style="display:flex;align-items:center;gap:12px;padding:9px 14px 9px 40px;
+              cursor:pointer;user-select:none;
+              border-top:1px solid rgba(255,255,255,.04);
+              background:${sd.checked?'rgba(63,185,80,.04)':'transparent'}">
+              <div style="width:18px;height:18px;border:2px solid ${sd.checked?'#3fb950':'#4d5562'};
+                border-radius:4px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+                background:${sd.checked?'#3fb950':'transparent'};color:#000;font-size:11px;font-weight:700">
+                ${sd.checked?'✓':''}
+              </div>
+              <span style="font-size:.78rem;font-family:'IBM Plex Mono',monospace;color:${subColor};
+                text-decoration:${sd.checked?'line-through':'none'};flex:1">${sub}</span>
+              ${sd.who?`<span style="font-size:.6rem;color:#4d5562">${sd.who} ${sd.when||''}</span>`:''}
+            </div>`;
         });
         html+=`</div>`;
       }
+
+      // Observação
+      html+=`
+          <div style="padding:4px 14px 8px;background:rgba(0,0,0,.15)">
+            <textarea data-obskey="${obsKey}"
+              placeholder="Observação — ${item.key}..."
+              oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px';hjSetObs('${sec.id}','${item.key.replace(/'/g,"\\'")}',this.value)"
+              style="width:100%;background:#0d1117;border:1px solid #21262d;border-radius:5px;
+              color:#7d8590;font-family:'IBM Plex Mono',monospace;font-size:.7rem;
+              padding:5px 8px;resize:none;min-height:28px;overflow:hidden;
+              outline:none;line-height:1.5;box-sizing:border-box"
+              onfocus="this.style.borderColor='#00c8ff';this.style.color='#e6edf3'"
+              onblur="this.style.borderColor='#21262d';this.style.color=this.value?'#e6edf3':'#7d8590'"
+              rows="1">${obs}</textarea>
+          </div>
+        </div>`;
+
       return html;
     }).join('');
 
-    return`<div class="hj-sector${allDone?' done':''}">
-      <div class="hj-sec-head">
-        <span class="hj-sec-name">${sec.id}</span>
-        <span class="hj-badge">${allDone?'CONCLUÍDO ✓':'PENDENTE'}</span>
-      </div>
-      ${itemsHTML}
-    </div>`;
+    return`
+      <div style="background:#161b22;border:1px solid ${allDone?'#3fb950':'#21262d'};
+        border-radius:10px;margin-bottom:10px;overflow:hidden;
+        box-shadow:${allDone?'0 0 10px rgba(63,185,80,.15)':'none'};transition:all .3s">
+        <div style="display:flex;align-items:center;justify-content:space-between;
+          padding:11px 14px;border-bottom:1px solid #21262d">
+          <span style="font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;
+            color:${allDone?'#3fb950':'#00c8ff'}">${sec.id}</span>
+          <span style="font-size:.58rem;padding:2px 8px;border-radius:20px;letter-spacing:1px;font-weight:600;
+            background:${allDone?'rgba(63,185,80,.12)':'rgba(248,81,73,.12)'};
+            color:${allDone?'#3fb950':'#f85149'};
+            border:1px solid ${allDone?'rgba(63,185,80,.3)':'rgba(248,81,73,.3)'}">
+            ${allDone?'CONCLUÍDO ✓':'PENDENTE'}
+          </span>
+        </div>
+        ${itemsHTML}
+      </div>`;
   }).join('');
+
+  // Restaurar altura dos textareas e valores
+  cont.querySelectorAll('textarea[data-obskey]').forEach(ta=>{
+    if(obsVals[ta.dataset.obskey]!==undefined&&!ta.value){
+      ta.value=obsVals[ta.dataset.obskey];
+    }
+    ta.style.height='auto';
+    ta.style.height=ta.scrollHeight+'px';
+  });
 }
 
 function hjWhatsApp(){
@@ -2982,18 +2840,26 @@ function hjWhatsApp(){
   msg+=`─────────────────────\n\n`;
   HJ_SECTORS.forEach(sec=>{
     const ss=hjState[sec.id]||{};
-    const allDone=sec.items.every(item=>{
-      if(!ss[item]?.checked)return false;
-      if(item==='Selagem montada')return HJ_SUB.every(sub=>ss[sub]?.checked);
-      return true;
+    const items=hjGetItems(sec);
+    const allDone=items.every(item=>{
+      if(!item.subs.length) return ss[item.key]?.checked;
+      return item.subs.every(s=>ss[item.key+'|||'+s]?.checked);
     });
     msg+=`${allDone?'✅':'🔄'} *${sec.id}*\n`;
-    sec.items.forEach(item=>{
-      const d=ss[item]||{};
-      msg+=`  ${d.checked?'☑':'☐'} ${item}\n`;
-      if(item==='Selagem montada'&&d.checked){
-        HJ_SUB.forEach(sub=>{const sd=ss[sub]||{};msg+=`    ${sd.checked?'☑':'☐'} ${sub}\n`;});
+    items.forEach(item=>{
+      if(!item.subs.length){
+        const d=ss[item.key]||{};
+        msg+=`  ${d.checked?'☑':'☐'} ${item.key}\n`;
+      } else {
+        const allS=item.subs.every(s=>ss[item.key+'|||'+s]?.checked);
+        msg+=`  ${allS?'☑':'☐'} ${item.key}\n`;
+        item.subs.forEach(sub=>{
+          const sd=ss[item.key+'|||'+sub]||{};
+          msg+=`    ${sd.checked?'☑':'☐'} ${sub}\n`;
+        });
       }
+      const obs=ss['obs|||'+item.key];
+      if(obs&&obs.trim()) msg+=`    📝 ${obs.trim()}\n`;
     });
     msg+='\n';
   });
@@ -3001,6 +2867,7 @@ function hjWhatsApp(){
   msg+=`─────────────────────\n📊 *Progresso: ${done}/${total} (${Math.round(done/total*100)}%)*`;
   window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
 }
+
 
 
 if('serviceWorker' in navigator){
