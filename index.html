@@ -371,6 +371,7 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
   <button class="tb"     onclick="tab('crono',this)">📅 Cronograma <span class="adot" id="cdot"></span></button>
   <button class="tb"     onclick="tab('cb',this)">🔒 Cart. Bloqueio</button>
   <button class="tb"     onclick="tab('adm',this)">⚙️ ADM</button>
+  <button class="tb"     onclick="tab('hidrojato',this)">💧 Hidrojato</button>
 </div>
 <main>
 
@@ -734,6 +735,104 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
     <div id="adm-feedbacks"></div>
   </div>
 </div>
+<!-- HIDROJATO -->
+<div id="tab-hidrojato" class="tp">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&display=swap');
+.hj-wrap{max-width:600px;margin:0 auto;padding-bottom:80px}
+.hj-header{background:linear-gradient(135deg,#0d1117,#1a2332);border-bottom:2px solid #00c8ff;
+  padding:14px 14px 10px;position:sticky;top:56px;z-index:10;box-shadow:0 4px 20px rgba(0,200,255,.15)}
+.hj-logo{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:3px;
+  color:#00c8ff;text-shadow:0 0 20px rgba(0,200,255,.35)}
+.hj-bar{background:#21262d;border-radius:4px;height:5px;overflow:hidden;margin-top:8px}
+.hj-fill{height:100%;background:linear-gradient(90deg,#00c8ff,#3fb950);border-radius:4px;transition:width .4s}
+.hj-prog{font-size:.6rem;color:#7d8590;text-align:right;margin-top:3px}
+.hj-op{background:#161b22;border-bottom:1px solid #21262d;padding:10px 14px}
+.hj-inp{background:#0d1117;border:1px solid #21262d;border-radius:6px;color:#e6edf3;
+  font-family:'IBM Plex Mono',monospace;font-size:.8rem;padding:6px 10px;outline:none;flex:1}
+.hj-ok{background:#00c8ff;border:none;border-radius:6px;color:#000;font-family:monospace;
+  font-size:.7rem;font-weight:600;padding:6px 14px;cursor:pointer;letter-spacing:1px}
+.hj-sector{background:#161b22;border:1px solid #21262d;border-radius:10px;
+  margin-bottom:10px;overflow:hidden;transition:all .3s}
+.hj-sector.done{border-color:#3fb950;box-shadow:0 0 10px rgba(63,185,80,.15)}
+.hj-sec-head{display:flex;align-items:center;justify-content:space-between;
+  padding:11px 14px;border-bottom:1px solid #21262d}
+.hj-sec-name{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:2px;color:#00c8ff}
+.hj-sector.done .hj-sec-name{color:#3fb950}
+.hj-badge{font-size:.58rem;padding:2px 8px;border-radius:20px;letter-spacing:1px;font-weight:600;
+  background:rgba(248,81,73,.12);color:#f85149;border:1px solid rgba(248,81,73,.3)}
+.hj-sector.done .hj-badge{background:rgba(63,185,80,.12);color:#3fb950;border-color:rgba(63,185,80,.3)}
+.hj-row{display:flex;align-items:center;gap:12px;padding:12px 14px;cursor:pointer;
+  border-bottom:1px solid #21262d;transition:background .2s;user-select:none}
+.hj-row:last-child{border-bottom:none}
+.hj-row:active{background:rgba(255,255,255,.05)}
+.hj-check{width:22px;height:22px;border:2px solid #7d8590;border-radius:5px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;
+  transition:all .2s;background:transparent;color:#000}
+.hj-check.ok{background:#3fb950;border-color:#3fb950}
+.hj-check.sel{background:#fbbf24;border-color:#fbbf24}
+.hj-label{font-size:.82rem;color:#e6edf3;flex:1;font-family:'IBM Plex Mono',monospace;transition:all .2s}
+.hj-label.done{color:#7d8590;text-decoration:line-through}
+.hj-sub{background:rgba(251,191,36,.04)}
+.hj-sub .hj-row{padding-left:40px}
+.hj-sub .hj-check{width:18px;height:18px;font-size:11px;border-color:#4d5562}
+.hj-sub .hj-check.sel{background:#fbbf24;border-color:#fbbf24}
+.hj-sub .hj-label{font-size:.78rem;color:#c9a227}
+.hj-sub .hj-label.done{color:#7d8590}
+.hj-wa{display:flex;align-items:center;justify-content:center;gap:10px;width:100%;
+  background:#25D366;color:#fff;border:none;border-radius:12px;padding:14px;
+  font-family:'IBM Plex Mono',monospace;font-size:.85rem;font-weight:600;letter-spacing:1px;
+  cursor:pointer;box-shadow:0 4px 20px rgba(37,211,102,.35);transition:transform .15s}
+.hj-wa:active{transform:scale(.97)}
+.hj-sync{font-size:.58rem;color:#7d8590;letter-spacing:1px;margin-top:2px}
+</style>
+
+<div class="hj-header">
+  <div style="display:flex;align-items:center;justify-content:space-between">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="font-size:24px;animation:pulse 2s ease-in-out infinite;display:inline-block">💧</span>
+      <span class="hj-logo">HIDROJATO</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span id="hj-saving" style="display:none;width:14px;height:14px;border:2px solid #00c8ff;border-top-color:transparent;border-radius:50%;animation:spin .8s linear infinite"></span>
+      <button onclick="hjReset()" style="background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.3);color:#f85149;border-radius:6px;padding:4px 10px;font-size:.6rem;font-family:monospace;cursor:pointer;letter-spacing:1px">RESET</button>
+    </div>
+  </div>
+  <div class="hj-sync" id="hj-sync-lbl">Checklist Colaborativo</div>
+  <div class="hj-bar"><div class="hj-fill" id="hj-fill" style="width:0%"></div></div>
+  <div class="hj-prog" id="hj-prog">0 / 0 itens (0%)</div>
+</div>
+
+<!-- Operador -->
+<div class="hj-op">
+  <div style="max-width:600px;margin:0 auto;display:flex;align-items:center;gap:8px">
+    <span style="font-size:.6rem;color:#7d8590;letter-spacing:1px;white-space:nowrap">👷 OPERADOR:</span>
+    <div id="hj-op-confirmed" style="display:none;align-items:center;gap:8px;flex:1">
+      <span id="hj-op-name" style="font-size:.82rem;color:#00c8ff;font-weight:600"></span>
+      <button onclick="hjChangeName()" style="background:none;border:1px solid #21262d;color:#7d8590;border-radius:4px;padding:2px 8px;font-size:.6rem;cursor:pointer;font-family:monospace">trocar</button>
+    </div>
+    <div id="hj-op-form" style="display:flex;gap:6px;flex:1">
+      <input id="hj-name-inp" class="hj-inp" placeholder="Digite seu nome..." maxlength="40"
+        onkeydown="if(event.key==='Enter')hjConfirmName()">
+      <button class="hj-ok" onclick="hjConfirmName()">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- Setores -->
+<div style="padding:12px 14px 0;max-width:600px;margin:0 auto" id="hj-sectors"></div>
+
+<!-- Botão WhatsApp fixo dentro da aba -->
+<div style="padding:12px 14px;max-width:600px;margin:0 auto">
+  <button class="hj-wa" onclick="hjWhatsApp()">
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+    </svg>
+    ENVIAR VIA WHATSAPP
+  </button>
+</div>
+</div>
+
 </main>
 
 <!-- MODAL STATUS -->
@@ -1796,18 +1895,30 @@ function buildPDF(rows,title){
   const tot=LTS.length,pend=LTS.filter(l=>l.status==='P').length,exec=LTS.filter(l=>l.status==='E').length,conc=LTS.filter(l=>l.status==='C').length;
   doc.text(`Total: ${tot}  |  Não Iniciadas: ${pend}  |  Execução: ${exec}  |  Concluídas: ${conc}`,14,29);
   doc.autoTable({startY:33,
-    styles:{fontSize:7,cellPadding:2,textColor:[220,236,255],fillColor:[20,28,43]},
+    styles:{fontSize:6.5,cellPadding:2,textColor:[220,236,255],fillColor:[20,28,43]},
     headStyles:{fillColor:[25,50,200],textColor:[200,145,15],fontStyle:'bold'},
     alternateRowStyles:{fillColor:[25,35,58]},
-    head:[['Nº LT','OS','Cart.Bloq.','C.Trab','Disciplina','Equipamento','Empresa','Líder','Responsável','Prioridade','Status','Início','Término']],
-    body:rows.map(l=>[l.num,l.os||'—',l.cartao||'—',l.ctrab||'—',dn(l.disc).n,
-      l.equip,l.empresa||'—',l.lider||'—',l.resp||'—',l.prio||'Normal',stl(l.status),fdt(l.inicio),fdt(l.fim)]),
+    head:[['Nº LT','OS','Área','Disciplina','Equipamento','Empresa','Líder','Responsável','C.Trab','Prioridade','Status','Início','Término','Descrição']],
+    body:rows.map(l=>[
+      l.num, l.os||'—', l.area||'—', dn(l.disc).n,
+      l.equip, l.empresa||'—', l.lider||'—', l.resp||'—',
+      l.ctrab||'—', l.prio||'Normal', stl(l.status),
+      fdt(l.inicio), fdt(l.fim), l.desc||'—'
+    ]),
+    columnStyles:{
+      4:{cellWidth:28}, // Equipamento
+      13:{cellWidth:35}, // Descrição
+    },
     didParseCell:(d)=>{if(d.section==='body'){
-      if(d.column.index===9){if(d.cell.raw==='Não Iniciado')d.cell.styles.textColor=[200,95,15];
+      if(d.column.index===10){
+        if(d.cell.raw==='Não Iniciado')d.cell.styles.textColor=[200,95,15];
         if(d.cell.raw==='Em Execução')d.cell.styles.textColor=[25,50,200];
-        if(d.cell.raw==='Concluída')d.cell.styles.textColor=[0,200,90];}
-      if(d.column.index===8){if(d.cell.raw==='Crítica')d.cell.styles.textColor=[180,75,90];
-        if(d.cell.raw==='Alta')d.cell.styles.textColor=[200,95,15];}
+        if(d.cell.raw==='Concluída')d.cell.styles.textColor=[0,200,90];
+      }
+      if(d.column.index===9){
+        if(d.cell.raw==='Crítica')d.cell.styles.textColor=[180,75,90];
+        if(d.cell.raw==='Alta')d.cell.styles.textColor=[200,95,15];
+      }
     }}
   });
   return doc;
@@ -1828,10 +1939,17 @@ function sharePDF(){
   _share(rows,'Não Iniciadas e Em Execução');
 }
 function shareRelPDF(){
+  // Aplicar os mesmos filtros ativos no relatório (status + área + bloqueio)
+  const areas=getAreaFilt('rel');
+  const rblqVal=document.getElementById('frblq')?.value||'';
+  const sortPrio=(a,b)=>{const o={Crítica:0,Alta:1,Normal:2};return(o[a.prio]??2)-(o[b.prio]??2);};
+  const areaFilt=r=>!areas.length||areas.includes(r.area||'');
+  const blqFilt=r=>{if(rblqVal==='com')return!!r.cartao;if(rblqVal==='sem')return!r.cartao;return true;};
   let rows;
-  if(relF)rows=LTS.filter(l=>l.status===relF).sort((a,b)=>{const o={Crítica:0,Alta:1,Normal:2};return(o[a.prio]??2)-(o[b.prio]??2)});
-  else rows=LTS.filter(l=>l.status==='P'||l.status==='E').sort((a,b)=>{const o={Crítica:0,Alta:1,Normal:2};return(o[a.prio]??2)-(o[b.prio]??2)});
-  _share(rows,relF?stl(relF):'Não Iniciadas e Em Execução');
+  if(relF) rows=LTS.filter(l=>l.status===relF&&areaFilt(l)&&blqFilt(l)).sort(sortPrio);
+  else rows=LTS.filter(l=>(l.status==='P'||l.status==='E')&&areaFilt(l)&&blqFilt(l)).sort(sortPrio);
+  const areaLabel=areas.length===1?' · '+areas[0]:areas.length>1?' · '+areas.length+' áreas':'';
+  _share(rows,(relF?stl(relF):'Não Iniciadas e Em Execução')+areaLabel);
 }
 function shareListPDF(){_share(getSorted(getFilt()),'Lista Filtrada');}
 
@@ -2375,6 +2493,7 @@ function render(){
   if(!a||a==='tab-crono')rCrono();
   if(!a||a==='tab-cb'){rCBTabs();rCB();}
   if(a==='tab-adm')rAdm();
+  if(a==='tab-hidrojato')hjRender();
   updAlarms();
 }
 
@@ -2422,7 +2541,468 @@ let _starVal = 0;
   }
 })();
 
-// ═══ SERVICE WORKER & OFFLINE ══════════════════════════════════
+// ═══ HIDROJATO ════════════════════════════════════════════════════
+const HJ_KEY='hidrojato-lt-state';
+const HJ_SECTORS=[
+  {id:'322LR201',items:['Tambor','Periféricos','Canaletas','Selagem montada'],circ:true},
+  {id:'322LR202',items:['Tambor','Periféricos','Canaletas','Selagem montada'],circ:true},
+  {id:'324LR401',items:['Periféricos','Selagem montada'],circ:true},
+  {id:'324LR402',items:['Tambor','Periféricos','Canaletas','Selagem montada'],circ:true},
+  {id:'325LR501',items:['Tambor','Periféricos','Canaletas','Selagem montada'],circ:false},
+  {id:'325LR502',items:['Tambor','Periféricos','Canaletas','Selagem montada'],circ:false},
+  {id:'325LR503',items:['Tambor','Periféricos','Canaletas','Selagem montada'],circ:false},
+  {id:'325LR504',items:['Tambor','Periféricos','Canaletas','Selagem montada'],circ:false},
+];
+// Subitens por item principal
+const HJ_SUBS={
+  'Selagem montada':['Ar instrumento','Água de selagem'],
+  'Canaletas':['LA','LOA'],
+  'Periféricos':['Plug esquerda','Plug direita','Plug superior'],
+};
+// Circulações — só nos setores com circ:true
+const HJ_CIRC=['Circulação'];
+
+let hjState={};
+let hjOperator='';
+
+function hjGetSubs(sec,item){
+  const subs=[...(HJ_SUBS[item]||[])];
+  if(item==='Periféricos'&&sec.circ) subs.push(...HJ_CIRC);
+  return subs;
+}
+
+function hjBuildInitial(){
+  const s={};
+  HJ_SECTORS.forEach(sec=>{
+    s[sec.id]={};
+    sec.items.forEach(item=>{
+      s[sec.id][item]={checked:false,who:null,when:null};
+      hjGetSubs(sec,item).forEach(sub=>{
+        s[sec.id][sub+'__'+item]={checked:false,who:null,when:null};
+      });
+    });
+    // obs por item
+    sec.items.forEach(item=>{s[sec.id]['obs__'+item]='';});
+  });
+  return s;
+}
+
+function hjSubKey(item,sub){return sub+'__'+item;}
+function hjObsKey(item){return 'obs__'+item;}
+
+function hjToggle(secId,item,sub){
+  if(!hjOperator){toast('⚠️ Confirme seu nome primeiro!','err');return;}
+  const key=sub?hjSubKey(item,sub):item;
+  if(!hjState[secId][key])hjState[secId][key]={checked:false,who:null,when:null};
+  const cur=hjState[secId][key];
+  const nowChecked=!cur.checked;
+  hjState[secId][key]=nowChecked
+    ?{checked:true,who:hjOperator,when:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}
+    :{checked:false,who:null,when:null};
+  // Ao desmarcar item pai, desmarca subitens
+  if(!sub&&!nowChecked){
+    const sec=HJ_SECTORS.find(s=>s.id===secId);
+    if(sec) hjGetSubs(sec,item).forEach(s2=>{hjState[secId][hjSubKey(item,s2)]={checked:false,who:null,when:null};});
+  }
+  hjRender();hjSave();
+}
+
+function hjSetObs(secId,item,val){
+  hjState[secId][hjObsKey(item)]=val;
+  // Salvar com debounce
+  clearTimeout(hjState._obsTimer);
+  hjState._obsTimer=setTimeout(()=>hjSave(),800);
+}
+
+function hjReset(){
+  if(!confirm('Resetar todo o checklist Hidrojato?'))return;
+  hjState=hjBuildInitial();
+  hjRender();hjSave();
+  toast('✔ Checklist Hidrojato resetado!');
+}
+
+function hjConfirmName(){
+  const v=document.getElementById('hj-name-inp').value.trim();
+  if(!v)return;
+  hjOperator=v;
+  document.getElementById('hj-op-name').textContent=v;
+  document.getElementById('hj-op-confirmed').style.display='flex';
+  document.getElementById('hj-op-form').style.display='none';
+}
+function hjChangeName(){
+  hjOperator='';
+  document.getElementById('hj-op-confirmed').style.display='none';
+  document.getElementById('hj-op-form').style.display='flex';
+  document.getElementById('hj-name-inp').value='';
+}
+
+function hjProgress(){
+  let total=0,done=0;
+  HJ_SECTORS.forEach(sec=>{
+    sec.items.forEach(item=>{
+      const subs=hjGetSubs(sec,item);
+      if(subs.length){
+        subs.forEach(sub=>{
+          total++;
+          if(hjState[sec.id]?.[hjSubKey(item,sub)]?.checked)done++;
+        });
+      } else {
+        total++;
+        if(hjState[sec.id]?.[item]?.checked)done++;
+      }
+    });
+  });
+  return{total,done};
+}
+
+function hjRender(){
+  const{total,done}=hjProgress();
+  const pct=total?Math.round(done/total*100):0;
+  const fill=document.getElementById('hj-fill');
+  const prog=document.getElementById('hj-prog');
+  if(fill)fill.style.width=pct+'%';
+  if(prog)prog.textContent=done+' / '+total+' itens ('+pct+'%)';
+
+  const cont=document.getElementById('hj-sectors');
+  if(!cont)return;
+
+  // Guardar obs abertas antes de re-renderizar
+  const obsVals={};
+  cont.querySelectorAll('textarea[data-obs]').forEach(ta=>{
+    obsVals[ta.dataset.obs]=ta.value;
+  });
+
+  cont.innerHTML=HJ_SECTORS.map(sec=>{
+    const ss=hjState[sec.id]||{};
+
+    // allDone: todos os subitens (ou itens sem sub) marcados
+    const allDone=sec.items.every(item=>{
+      const subs=hjGetSubs(sec,item);
+      if(subs.length) return subs.every(sub=>ss[hjSubKey(item,sub)]?.checked);
+      return ss[item]?.checked;
+    });
+
+    const itemsHTML=sec.items.map((item,idx)=>{
+      const d=ss[item]||{};
+      const subs=hjGetSubs(sec,item);
+      const hasSubs=subs.length>0;
+      const isLast=idx===sec.items.length-1;
+      const isSel=item==='Selagem montada';
+      const isCan=item==='Canaletas';
+      const isPer=item==='Periféricos';
+
+      // Item pai: se tem subs, checked = todos subs marcados
+      const allSubsDone=hasSubs&&subs.every(sub=>ss[hjSubKey(item,sub)]?.checked);
+      const someSubsDone=hasSubs&&subs.some(sub=>ss[hjSubKey(item,sub)]?.checked);
+      const itemChecked=hasSubs?allSubsDone:d.checked;
+      const itemPartial=hasSubs&&someSubsDone&&!allSubsDone;
+
+      const chkCls=itemChecked?'ok':itemPartial?'sel':'';
+      const chkLabel=itemChecked?'✓':itemPartial?'~':'';
+      const labelCls=itemChecked?'done':'';
+      const rowBg=itemChecked?'rgba(63,185,80,.04)':itemPartial?'rgba(251,191,36,.03)':'transparent';
+      const border='border-bottom:1px solid #21262d;';
+
+      const subCount=hasSubs?`<span style="font-size:.58rem;color:#7d8590;margin-left:auto">
+        ${subs.filter(s=>ss[hjSubKey(item,s)]?.checked).length}/${subs.length}</span>`:'';
+
+      // Clique no pai: se tem subs, não faz toggle direto — só visual
+      const onclickPai=hasSubs
+        ?`hjTogglePai('${sec.id}','${item.replace(/'/g,"\\'")}')`
+        :`hjToggle('${sec.id}','${item.replace(/'/g,"\\'")}',null)`;
+
+      const obs=ss[hjObsKey(item)]||'';
+      const obsKey=`${sec.id}__${item}`;
+
+      let html=`
+        <div class="hj-row" onclick="${onclickPai}" style="background:${rowBg};${border}">
+          <div class="hj-check ${chkCls}">${chkLabel}</div>
+          <span class="hj-label ${labelCls}">${item}</span>
+          ${subCount}
+          ${d.who&&!hasSubs?`<span style="font-size:.55rem;color:#7d8590">${d.who} ${d.when||''}</span>`:''}
+        </div>`;
+
+      // Subitens
+      if(hasSubs){
+        html+=`<div class="hj-sub" style="background:rgba(0,200,255,.02)">`;
+        subs.forEach((sub,si)=>{
+          const sk=hjSubKey(item,sub);
+          const sd=ss[sk]||{};
+          const subColor=isSel?'#c9a227':isCan?'#00c8ff':isPer?'#a78bfa':'#e6edf3';
+          const subBorder=si<subs.length-1?'border-bottom:1px solid rgba(255,255,255,.05);':'';
+          html+=`<div class="hj-row" onclick="hjToggle('${sec.id}','${item.replace(/'/g,"\\'")}','${sub.replace(/'/g,"\\'")}')"
+            style="${subBorder}background:${sd.checked?'rgba(63,185,80,.04)':'transparent'}">
+            <div class="hj-check ${sd.checked?'ok':''}" style="width:18px;height:18px;font-size:11px;border-color:${sd.checked?'#3fb950':'#4d5562'}">${sd.checked?'✓':''}</div>
+            <span class="hj-label ${sd.checked?'done':''}" style="font-size:.78rem;color:${sd.checked?'#7d8590':subColor}">${sub}</span>
+            ${sd.who?`<span style="font-size:.55rem;color:#7d8590">${sd.who} ${sd.when||''}</span>`:''}
+          </div>`;
+        });
+        html+=`</div>`;
+      }
+
+      // Campo observação expansível
+      html+=`<div style="padding:4px 14px 6px;border-bottom:${!isLast?'1px solid #21262d':'none'}">
+        <textarea data-obs="${obsKey}"
+          oninput="hjSetObs('${sec.id}','${item.replace(/'/g,"\\'")}',this.value)"
+          placeholder="Observação sobre ${item}..."
+          style="width:100%;background:#0d1117;border:1px solid #21262d;border-radius:5px;
+          color:#7d8590;font-family:'IBM Plex Mono',monospace;font-size:.7rem;padding:5px 8px;
+          resize:none;min-height:28px;overflow:hidden;outline:none;transition:border-color .2s;line-height:1.4"
+          onfocus="this.style.borderColor='#00c8ff';this.style.color='#e6edf3'"
+          onblur="this.style.borderColor='#21262d';this.style.color=this.value?'#e6edf3':'#7d8590'"
+          rows="1"
+          oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px';hjSetObs('${sec.id}','${item.replace(/'/g,"\\'")}',this.value)"
+        >${obs}</textarea>
+      </div>`;
+
+      return html;
+    }).join('');
+
+    return`<div class="hj-sector${allDone?' done':''}">
+      <div class="hj-sec-head">
+        <span class="hj-sec-name">${sec.id}</span>
+        <span class="hj-badge">${allDone?'CONCLUÍDO ✓':'PENDENTE'}</span>
+      </div>
+      ${itemsHTML}
+    </div>`;
+  }).join('');
+
+  // Restaurar alturas dos textareas
+  cont.querySelectorAll('textarea[data-obs]').forEach(ta=>{
+    ta.style.height='auto';
+    ta.style.height=ta.scrollHeight+'px';
+  });
+}
+
+// Toggle pai: marca/desmarca todos os subitens de uma vez
+function hjTogglePai(secId,item){
+  if(!hjOperator){toast('⚠️ Confirme seu nome primeiro!','err');return;}
+  const sec=HJ_SECTORS.find(s=>s.id===secId);if(!sec)return;
+  const subs=hjGetSubs(sec,item);
+  const allDone=subs.every(s=>hjState[secId][hjSubKey(item,s)]?.checked);
+  const now=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  subs.forEach(sub=>{
+    hjState[secId][hjSubKey(item,sub)]=!allDone
+      ?{checked:true,who:hjOperator,when:now}
+      :{checked:false,who:null,when:null};
+  });
+  hjRender();hjSave();
+}
+
+function hjWhatsApp(){
+  const now=new Date();
+  let msg=`💧 *HIDROJATO – RELATÓRIO*\n`;
+  msg+=`👷 Operador: *${hjOperator||'—'}*\n`;
+  msg+=`📅 ${now.toLocaleDateString('pt-BR')} às ${now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}\n`;
+  msg+=`─────────────────────\n\n`;
+  HJ_SECTORS.forEach(sec=>{
+    const ss=hjState[sec.id]||{};
+    const allDone=sec.items.every(item=>{
+      const subs=hjGetSubs(sec,item);
+      if(subs.length) return subs.every(sub=>ss[hjSubKey(item,sub)]?.checked);
+      return ss[item]?.checked;
+    });
+    msg+=`${allDone?'✅':'🔄'} *${sec.id}*\n`;
+    sec.items.forEach(item=>{
+      const subs=hjGetSubs(sec,item);
+      if(subs.length){
+        const allS=subs.every(s=>ss[hjSubKey(item,s)]?.checked);
+        msg+=`  ${allS?'☑':'☐'} ${item}\n`;
+        subs.forEach(sub=>{
+          const sd=ss[hjSubKey(item,sub)]||{};
+          msg+=`    ${sd.checked?'☑':'☐'} ${sub}\n`;
+        });
+      } else {
+        const d=ss[item]||{};
+        msg+=`  ${d.checked?'☑':'☐'} ${item}\n`;
+      }
+      const obs=ss[hjObsKey(item)];
+      if(obs) msg+=`    📝 ${obs}\n`;
+    });
+    msg+='\n';
+  });
+  const{total,done}=hjProgress();
+  msg+=`─────────────────────\n📊 *Progresso: ${done}/${total} (${Math.round(done/total*100)}%)*`;
+  window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
+}
+
+function hjLoad(){
+  if(window._fbOk){
+    try{
+      firebase.database().ref('hidrojato/state').once('value').then(snap=>{
+        const v=snap.val();
+        hjState=v?JSON.parse(v):hjBuildInitial();
+        hjRender();
+        firebase.database().ref('hidrojato/state').on('value',s2=>{
+          const v2=s2.val();
+          if(v2){hjState=JSON.parse(v2);hjRender();}
+        });
+      }).catch(()=>{
+        hjState=JSON.parse(localStorage.getItem(HJ_KEY)||'null')||hjBuildInitial();
+        hjRender();
+      });
+    }catch(e){
+      hjState=JSON.parse(localStorage.getItem(HJ_KEY)||'null')||hjBuildInitial();
+      hjRender();
+    }
+  } else {
+    hjState=JSON.parse(localStorage.getItem(HJ_KEY)||'null')||hjBuildInitial();
+    hjRender();
+  }
+}
+
+async function hjSave(){
+  document.getElementById('hj-saving').style.display='inline-block';
+  const str=JSON.stringify(hjState);
+  localStorage.setItem(HJ_KEY,str);
+  if(window._fbOk){
+    try{await firebase.database().ref('hidrojato/state').set(str);}catch(e){}
+  }
+  document.getElementById('hj-saving').style.display='none';
+  const el=document.getElementById('hj-sync-lbl');
+  if(el)el.textContent='sync '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+}
+
+function hjToggle(secId,item){
+  if(!hjOperator){toast('⚠️ Confirme seu nome primeiro!','err');return;}
+  const cur=hjState[secId][item];
+  const nowChecked=!cur.checked;
+  hjState[secId][item]=nowChecked
+    ?{checked:true,who:hjOperator,when:new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}
+    :{checked:false,who:null,when:null};
+  if(item==='Selagem montada'&&!nowChecked){
+    HJ_SUB.forEach(sub=>{hjState[secId][sub]={checked:false,who:null,when:null};});
+  }
+  hjRender();
+  hjSave();
+}
+
+function hjReset(){
+  if(!confirm('Resetar todo o checklist Hidrojato?'))return;
+  hjState=hjBuildInitial();
+  hjRender();hjSave();
+  toast('✔ Checklist Hidrojato resetado!');
+}
+
+function hjConfirmName(){
+  const v=document.getElementById('hj-name-inp').value.trim();
+  if(!v)return;
+  hjOperator=v;
+  document.getElementById('hj-op-name').textContent=v;
+  document.getElementById('hj-op-confirmed').style.display='flex';
+  document.getElementById('hj-op-form').style.display='none';
+}
+function hjChangeName(){
+  hjOperator='';
+  document.getElementById('hj-op-confirmed').style.display='none';
+  document.getElementById('hj-op-form').style.display='flex';
+  document.getElementById('hj-name-inp').value='';
+}
+
+function hjProgress(){
+  let total=0,done=0;
+  HJ_SECTORS.forEach(s=>{
+    s.items.forEach(item=>{
+      if(item==='Selagem montada')return;
+      total++;
+      if(hjState[s.id]?.[item]?.checked)done++;
+    });
+  });
+  return{total,done};
+}
+
+function hjRender(){
+  // Progresso
+  const{total,done}=hjProgress();
+  const pct=total?Math.round(done/total*100):0;
+  const fill=document.getElementById('hj-fill');
+  const prog=document.getElementById('hj-prog');
+  if(fill)fill.style.width=pct+'%';
+  if(prog)prog.textContent=done+' / '+total+' itens ('+pct+'%)';
+
+  // Setores
+  const cont=document.getElementById('hj-sectors');
+  if(!cont)return;
+  cont.innerHTML=HJ_SECTORS.map(sec=>{
+    const ss=hjState[sec.id]||{};
+    const allDone=sec.items.every(item=>{
+      if(!ss[item]?.checked)return false;
+      if(item==='Selagem montada')return HJ_SUB.every(sub=>ss[sub]?.checked);
+      return true;
+    });
+    const itemsHTML=sec.items.map((item,idx)=>{
+      const d=ss[item]||{};
+      const isSel=item==='Selagem montada';
+      const isLast=idx===sec.items.length-1;
+      const showSub=isSel&&d.checked;
+      const chkCls=d.checked?(isSel?'sel':'ok'):'';
+      const labelCls=d.checked?'done':'';
+      const border=(!isLast||showSub)?'border-bottom:1px solid #21262d;':'';
+      const rowBg=d.checked?(isSel?'rgba(251,191,36,.05)':'rgba(63,185,80,.04)'):'transparent';
+      let html=`<div class="hj-row" onclick="hjToggle('${sec.id}','${item.replace(/'/g,"\\'")}')"
+        style="background:${rowBg};${border}">
+        <div class="hj-check ${chkCls}">${d.checked?'✓':''}</div>
+        <span class="hj-label ${labelCls}">${item}</span>
+        ${isSel&&!d.checked?'<span style="font-size:.58rem;color:#fbbf24;background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.3);padding:1px 6px;border-radius:10px">+2</span>':''}
+        ${isSel&&d.checked?'<span style="font-size:.58rem;color:#fbbf24">▼</span>':''}
+        ${d.who?`<span style="font-size:.55rem;color:#7d8590">${d.who} ${d.when||''}</span>`:''}
+      </div>`;
+      if(showSub){
+        html+=`<div class="hj-sub">`;
+        HJ_SUB.forEach((sub,si)=>{
+          const sd=ss[sub]||{};
+          const subBorder=si<HJ_SUB.length-1?'border-bottom:1px solid rgba(251,191,36,.1);':'';
+          html+=`<div class="hj-row" onclick="hjToggle('${sec.id}','${sub.replace(/'/g,"\\'")}')"
+            style="${subBorder}">
+            <div class="hj-check ${sd.checked?'sel':''}">${sd.checked?'✓':''}</div>
+            <span class="hj-label ${sd.checked?'done':''}" style="color:${sd.checked?'#7d8590':'#c9a227'}">${sub}</span>
+            ${sd.who?`<span style="font-size:.55rem;color:#7d8590">${sd.who} ${sd.when||''}</span>`:''}
+          </div>`;
+        });
+        html+=`</div>`;
+      }
+      return html;
+    }).join('');
+
+    return`<div class="hj-sector${allDone?' done':''}">
+      <div class="hj-sec-head">
+        <span class="hj-sec-name">${sec.id}</span>
+        <span class="hj-badge">${allDone?'CONCLUÍDO ✓':'PENDENTE'}</span>
+      </div>
+      ${itemsHTML}
+    </div>`;
+  }).join('');
+}
+
+function hjWhatsApp(){
+  const now=new Date();
+  let msg=`💧 *HIDROJATO – RELATÓRIO*\n`;
+  msg+=`👷 Operador: *${hjOperator||'—'}*\n`;
+  msg+=`📅 ${now.toLocaleDateString('pt-BR')} às ${now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}\n`;
+  msg+=`─────────────────────\n\n`;
+  HJ_SECTORS.forEach(sec=>{
+    const ss=hjState[sec.id]||{};
+    const allDone=sec.items.every(item=>{
+      if(!ss[item]?.checked)return false;
+      if(item==='Selagem montada')return HJ_SUB.every(sub=>ss[sub]?.checked);
+      return true;
+    });
+    msg+=`${allDone?'✅':'🔄'} *${sec.id}*\n`;
+    sec.items.forEach(item=>{
+      const d=ss[item]||{};
+      msg+=`  ${d.checked?'☑':'☐'} ${item}\n`;
+      if(item==='Selagem montada'&&d.checked){
+        HJ_SUB.forEach(sub=>{const sd=ss[sub]||{};msg+=`    ${sd.checked?'☑':'☐'} ${sub}\n`;});
+      }
+    });
+    msg+='\n';
+  });
+  const{total,done}=hjProgress();
+  msg+=`─────────────────────\n📊 *Progresso: ${done}/${total} (${Math.round(done/total*100)}%)*`;
+  window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
+}
+
+
 if('serviceWorker' in navigator){
   navigator.serviceWorker.register('sw.js')
     .then(r=>console.log('SW ok:',r.scope))
@@ -2618,6 +3198,7 @@ document.addEventListener('DOMContentLoaded',function(){
   }
   showCMeta();
   render();
+  hjLoad();
   setInterval(updAlarms,60000);
 });
 </script>
