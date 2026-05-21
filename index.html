@@ -388,7 +388,7 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
     </div>
   </div>
   <div class="ks" id="kstrip"></div>
-  <div id="astrip"></div>
+  <div id="astrip" style="display:none"></div>
   <div class="st">Por Disciplina</div>
   <div class="dg" id="dgrid"></div>
   <div class="st">Não Iniciadas / Em Execução — Prioridade</div>
@@ -514,10 +514,31 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
     <button class="btn bs bsm" onclick="clearF()">✕ Limpar</button>
   </div>
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:7px">
-    <span style="font-size:10px;color:var(--muted)" id="lcount"></span>
-    <button class="btn baz bsm" onclick="shareListPDF()">📤 Compartilhar lista</button>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span style="font-size:10px;color:var(--muted)" id="lcount"></span>
+      <label style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);cursor:pointer;font-weight:normal;text-transform:none;letter-spacing:0">
+        <input type="checkbox" id="chk-all" onchange="toggleSelAll(this.checked)" style="width:14px;height:14px;accent-color:var(--sz-aml)">
+        Selecionar tudo
+      </label>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+      <div id="lote-bar" style="display:none;align-items:center;gap:6px;flex-wrap:wrap">
+        <span id="lote-count" style="font-size:11px;color:var(--sz-aml);font-weight:700"></span>
+        <select id="lote-status" style="font-size:11px;padding:4px 8px">
+          <option value="">— Novo status —</option>
+          <option value="P">🟠 Não Iniciado</option>
+          <option value="E">🔵 Em Execução</option>
+          <option value="C">🟢 Concluída</option>
+          <option value="X">⚫ Cancelada</option>
+        </select>
+        <button class="btn bp bsm" onclick="aplicarStatusLote()">✔ Aplicar</button>
+        <button class="btn bs bsm" onclick="limparSel()">✕</button>
+      </div>
+      <button class="btn baz bsm" onclick="shareListPDF()">📤 Compartilhar lista</button>
+    </div>
   </div>
   <div class="tw"><table><thead><tr>
+    <th style="width:32px"><input type="checkbox" id="chk-head" onchange="toggleSelAll(this.checked)" style="width:14px;height:14px;accent-color:var(--sz-aml)"></th>
     <th onclick="srt('num')">Nº LT ⇅</th><th onclick="srt('os')">OS ⇅</th>
     <th onclick="srt('area')">Área ⇅</th>
     <th onclick="srt('disc')">Disciplina ⇅</th><th onclick="srt('equip')">Equipamento ⇅</th>
@@ -1121,12 +1142,7 @@ function updAlarms(){
   b.style.display=al.length?'block':'none';
   if(al.length)b.textContent=al.length;
   d.classList.toggle('on',al.length>0);
-  const s=document.getElementById('astrip');if(!s)return;
-  if(!al.length){s.innerHTML='';return;}
-  s.innerHTML=`<div class="ap"><div class="apt">🚨 ${al.length} Alarme${al.length>1?'s':''} Ativo${al.length>1?'s':''}</div>
-    ${al.slice(0,5).map(aHtml).join('')}
-    ${al.length>5?`<div style="font-size:10px;color:var(--muted);text-align:center;margin-top:3px">...e mais ${al.length-5} — toque em 🔔</div>`:''}
-  </div>`;
+  // Alarmes só aparecem no modal ao clicar no sino — não ocupam espaço no painel
 }
 function openAlarm(){
   const al=getAlarms();
@@ -1308,6 +1324,75 @@ function executarAcaoSenha(acao,id){
   else if(acao==='cbDel'){ deletarCB(); }
   else if(acao==='clearCrono'){ clearCrono(); }
   else if(acao==='clearCB'){ deletarCB(); }
+}
+
+// ═══ SELEÇÃO MÚLTIPLA ════════════════════════════════════════════
+function onChkChange(){
+  const chks=[...document.querySelectorAll('.lt-chk')];
+  const sel=chks.filter(c=>c.checked);
+  const bar=document.getElementById('lote-bar');
+  const cnt=document.getElementById('lote-count');
+  const allChk=document.getElementById('chk-all');
+  const headChk=document.getElementById('chk-head');
+  if(bar)bar.style.display=sel.length?'flex':'none';
+  if(cnt)cnt.textContent=sel.length+' selecionada'+(sel.length>1?'s':'');
+  if(allChk)allChk.checked=sel.length===chks.length&&chks.length>0;
+  if(headChk)headChk.checked=sel.length===chks.length&&chks.length>0;
+}
+function toggleSelAll(checked){
+  document.querySelectorAll('.lt-chk').forEach(c=>c.checked=checked);
+  const allChk=document.getElementById('chk-all');
+  const headChk=document.getElementById('chk-head');
+  if(allChk)allChk.checked=checked;
+  if(headChk)headChk.checked=checked;
+  onChkChange();
+}
+function limparSel(){
+  toggleSelAll(false);
+  const ls=document.getElementById('lote-status');if(ls)ls.value='';
+}
+async function aplicarStatusLote(){
+  const novoStatus=document.getElementById('lote-status').value;
+  if(!novoStatus){toast('⚠️ Selecione um status','err');return;}
+  const ids=[...document.querySelectorAll('.lt-chk:checked')].map(c=>c.dataset.id);
+  if(!ids.length){toast('⚠️ Nenhuma LT selecionada','err');return;}
+  if(!confirm(`Alterar ${ids.length} LT(s) para "${stl(novoStatus)}"?`))return;
+  syncBar(true);
+  for(const id of ids){
+    const l=LTS.find(x=>x.id===id);if(!l)continue;
+    l.status=novoStatus;
+    if(window._fbOk&&window._fbSave&&navigator.onLine){
+      try{await window._fbSave(l);}catch(e){addToQueue({tipo:'save',id:l.id,data:l});}
+    } else {sv();addToQueue({tipo:'save',id:l.id,data:l});}
+  }
+  syncBar(false);
+  limparSel();render();
+  toast(`✔ ${ids.length} LT(s) → "${stl(novoStatus)}"!`);
+}
+
+// ═══ AUTOCOMPLETE ════════════════════════════════════════════════
+function acVals(field){
+  const vals=new Set();
+  LTS.forEach(l=>{if(l[field]&&l[field].trim())vals.add(l[field].trim());});
+  return[...vals].sort();
+}
+function setupAC(inputId,field){
+  const inp=document.getElementById(inputId);if(!inp)return;
+  const dlId='dl-'+inputId;
+  let dl=document.getElementById(dlId);
+  if(!dl){dl=document.createElement('datalist');dl.id=dlId;document.body.appendChild(dl);}
+  inp.setAttribute('list',dlId);
+  inp.addEventListener('focus',()=>{
+    dl.innerHTML=acVals(field).map(v=>`<option value="${v.replace(/"/g,'&quot;')}">`).join('');
+  });
+}
+function initAutocomplete(){
+  setupAC('fempresa','empresa');
+  setupAC('flider','lider');
+  setupAC('fresp','resp');
+  setupAC('fequip','equip');
+  setupAC('fctrab','ctrab');
+  setupAC('fcartao','cartao');
 }
 
 function checkDupLT(){
@@ -1530,10 +1615,11 @@ function rLista(){
   const fl=getSorted(getFilt());
   document.getElementById('lcount').textContent=`${fl.length} de ${LTS.length} LTs`;
   const tb=document.getElementById('ltb');
-  if(!fl.length){tb.innerHTML=`<tr><td colspan="17"><div class="es"><div class="ei">🔍</div><p>Nenhuma LT.</p></div></td></tr>`;return;}
+  if(!fl.length){tb.innerHTML=`<tr><td colspan="18"><div class="es"><div class="ei">🔍</div><p>Nenhuma LT.</p></div></td></tr>`;return;}
   tb.innerHTML=fl.map(l=>{const od=ovd(l);const lt2=late(l);
     const areaBadge=l.area?`<span style="font-size:9px;font-weight:800;padding:1px 6px;border-radius:3px;background:#1932c820;color:#60a5fa;border:1px solid #1932c8">${l.area}</span>`:'—';
-    return`<tr class="${od||lt2?'ra':''}">
+    return`<tr class="${od||lt2?'ra':''}" data-id="${l.id}">
+      <td><input type="checkbox" class="lt-chk" data-id="${l.id}" onchange="onChkChange()" style="width:14px;height:14px;accent-color:var(--sz-aml)"></td>
       <td class="ln">${l.num}${od?' 🔴':lt2?' 🟠':''}</td>
       <td class="sc">${l.os||'—'}</td>
       <td>${areaBadge}</td>
@@ -3062,6 +3148,7 @@ document.addEventListener('DOMContentLoaded',function(){
   showCMeta();
   render();
   hjLoad();
+  initAutocomplete();
   setInterval(updAlarms,60000);
 });
 </script>
