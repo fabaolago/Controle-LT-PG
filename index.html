@@ -34,13 +34,34 @@ try{
   const _db=firebase.database();
   const _auth=firebase.auth();
 
-  // Login anônimo automático — sem interação do usuário
+  // Atualizar status visual
+  function setFbStatus(txt,cor){
+    const el=document.getElementById('fbst');
+    if(el){el.textContent=txt;el.style.color=cor;}
+  }
+
+  // Login anônimo automático
   _auth.onAuthStateChanged(user=>{
     if(!user){
-      _auth.signInAnonymously().catch(e=>console.error('Auth erro:',e));
+      setFbStatus('⏳ Conectando...','#c8910f');
+      _auth.signInAnonymously().catch(e=>{
+        console.error('Auth erro:',e);
+        setFbStatus('🔴 Sem auth','#b44b5a');
+      });
       return;
     }
     window._fbAuthOk=true;
+    setFbStatus('🟢 Online','#00c85a');
+
+    // Limpar fila pendente ao conectar — evita acúmulo de operações falsas
+    // (ocorre quando o código atualizado não estava publicado ainda)
+    const q=getQueue();
+    if(q.length>10){
+      // Fila muito grande = provavelmente acúmulo indevido, limpar
+      saveQueue([]);
+      showQueueBadge(0);
+      console.log('Fila grande limpa automaticamente ao reconectar');
+    }
 
     // Escuta LTs
     _db.ref('lts').on('value',snap=>{
@@ -95,16 +116,19 @@ try{
     window._fbSaveCBList=async function(lista){await _db.ref('cb_list').set(lista.map(c=>({...c})));};
 
     window._fbOk=true;
-    const el=document.getElementById('fbst');
-    if(el){el.textContent='🟢 Online';el.style.color='#00c85a';}
+  });
+
+  // Monitorar conexão em tempo real
+  _db.ref('.info/connected').on('value',snap=>{
+    if(snap.val()===false&&window._fbAuthOk){
+      setFbStatus('🔴 Offline','#b44b5a');
+    }
   });
 
 }catch(e){
   console.error('Firebase:',e);
-  window.addEventListener('DOMContentLoaded',()=>{
-    const el=document.getElementById('fbst');
-    if(el){el.textContent='🔴 Offline';el.style.color='#b44b5a';}
-  });
+  const el=document.getElementById('fbst');
+  if(el){el.textContent='🔴 Offline';el.style.color='#b44b5a';}
 }
 
 </script>
@@ -2982,15 +3006,22 @@ function showQueueBadge(n){
     b=document.createElement('div');b.id='queue-badge';
     b.style.cssText='position:fixed;bottom:22px;left:16px;z-index:500;background:#c8910f;'+
       'color:#000;font-family:var(--fh);font-size:11px;font-weight:800;padding:5px 10px;'+
-      'border-radius:14px;display:none;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.4)';
-    b.onclick=syncPendingQueue;
+      'border-radius:14px;display:none;box-shadow:0 2px 8px rgba(0,0,0,.4);gap:7px;align-items:center';
+    b.innerHTML='<span id="queue-txt"></span>'+
+      '<button onclick="syncPendingQueue()" style="background:rgba(0,0,0,.25);border:none;color:#000;'+
+      'font-size:10px;font-weight:800;padding:2px 7px;border-radius:4px;cursor:pointer;font-family:var(--fh)">SYNC</button>'+
+      '<button onclick="saveQueue([]);showQueueBadge(0)" style="background:none;border:none;color:rgba(0,0,0,.5);'+
+      'font-size:13px;cursor:pointer;padding:0 2px;line-height:1" title="Limpar fila">✕</button>';
     document.body.appendChild(b);
   }
-  if(n>0){b.textContent='⏳ '+n+' pendente'+(n>1?'s':'')+' — toque p/ sincronizar';b.style.display='block';}
-  else b.style.display='none';
+  if(n>0){
+    const txt=document.getElementById('queue-txt');
+    if(txt)txt.textContent='⏳ '+n+' pendente'+(n>1?'s':'');
+    b.style.display='flex';
+  } else {b.style.display='none';}
 }
 async function syncPendingQueue(){
-  if(!navigator.onLine||!window._fbOk)return;
+  if(!navigator.onLine||!window._fbOk||!window._fbAuthOk)return;
   const q=getQueue();if(!q.length){showQueueBadge(0);return;}
   toast('⏳ Sincronizando '+q.length+' operação(ões)...');
   const failed=[];
@@ -3004,12 +3035,17 @@ async function syncPendingQueue(){
   }
   saveQueue(failed);showQueueBadge(failed.length);
   if(!failed.length)toast('✔ Tudo sincronizado!');
-  else toast('⚠️ '+failed.length+' falharam — tentando depois','err');
+  else toast('⚠️ '+failed.length+' falharam','err');
 }
 window.addEventListener('load',()=>{
-  const q=getQueue();if(q.length)showQueueBadge(q.length);
-  if(navigator.onLine)setTimeout(syncPendingQueue,3000);
+  // Limpar fila acumulada indevidamente (ex: gerada antes do auth estar pronto)
+  const q=getQueue();
+  if(q.length>50){saveQueue([]);showQueueBadge(0);console.log('Fila indevida limpa');}
+  else if(q.length)showQueueBadge(q.length);
+  // Aguardar auth antes de tentar sync
+  setTimeout(()=>{if(navigator.onLine&&window._fbAuthOk)syncPendingQueue();},5000);
 });
+
 
 function abrirFeedback(){
   _starVal=0;
