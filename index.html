@@ -15,7 +15,6 @@
 <!-- Firebase SDK compat -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script>
 const _FB={
   apiKey:"AIzaSyB0t5EyCmDwk8Hw_pkRQHWAVtcfBKCOqio",
@@ -28,107 +27,82 @@ const _FB={
 };
 window._fbOk=false;
 window._fbReady=false;
-window._fbAuthOk=false;
 try{
   firebase.initializeApp(_FB);
   const _db=firebase.database();
-  const _auth=firebase.auth();
 
-  // Atualizar status visual
-  function setFbStatus(txt,cor){
-    const el=document.getElementById('fbst');
-    if(el){el.textContent=txt;el.style.color=cor;}
-  }
-
-  // Login anônimo automático
-  _auth.onAuthStateChanged(user=>{
-    if(!user){
-      setFbStatus('⏳ Conectando...','#c8910f');
-      _auth.signInAnonymously().catch(e=>{
-        console.error('Auth erro:',e);
-        setFbStatus('🔴 Sem auth','#b44b5a');
-      });
-      return;
-    }
-    window._fbAuthOk=true;
-    setFbStatus('🟢 Online','#00c85a');
-
-    // Limpar fila pendente ao conectar — evita acúmulo de operações falsas
-    // (ocorre quando o código atualizado não estava publicado ainda)
-    const q=getQueue();
-    if(q.length>10){
-      // Fila muito grande = provavelmente acúmulo indevido, limpar
-      saveQueue([]);
-      showQueueBadge(0);
-      console.log('Fila grande limpa automaticamente ao reconectar');
-    }
-
-    // Escuta LTs
-    _db.ref('lts').on('value',snap=>{
-      const v=snap.val();
-      window._LTS_FB=v?Object.entries(v).map(([k,r])=>({...r,_k:k})):[];
-      if(window._fbReady){LTS=window._LTS_FB;render();updAlarms();}
-    });
-
-    // Escuta CRONOS_LIST
-    _db.ref('cronos_list').on('value',snap=>{
-      const v=snap.val();
-      if(v!==null){
-        let lista=Array.isArray(v)?v:Object.keys(v).sort((a,b)=>Number(a)-Number(b)).map(k=>v[k]);
-        lista=lista.map(c=>({...c,
-          tarefas:Array.isArray(c.tarefas)?c.tarefas:
-            c.tarefas?Object.keys(c.tarefas).sort((a,b)=>Number(a)-Number(b)).map(k=>c.tarefas[k]):[]
-        }));
-        window._CRONOS_LIST_FB=lista;
-        if(window._fbReady){
-          CRONOS_LIST=lista;
-          if(CRONO_IDX>=CRONOS_LIST.length)CRONO_IDX=Math.max(0,CRONOS_LIST.length-1);
-          if(document.querySelector('#tab-crono.tp.on')){rCronoTabs();showCMeta();rCrono();}
-          updAlarms();
-        }
-      } else {window._CRONOS_LIST_FB=[];if(window._fbReady){CRONOS_LIST=[];rCronoTabs();showCMeta();}}
-    });
-
-    // Escuta CB_LIST
-    _db.ref('cb_list').on('value',snap=>{
-      const v=snap.val();
-      if(v!==null){
-        let lista=Array.isArray(v)?v:Object.keys(v).sort((a,b)=>Number(a)-Number(b)).map(k=>v[k]);
-        CB_LIST=lista;localStorage.setItem('cb_list5',JSON.stringify(CB_LIST));
-        if(CB_IDX>=CB_LIST.length)CB_IDX=Math.max(0,CB_LIST.length-1);
-        if(document.querySelector('#tab-cb.tp.on')){rCBTabs();rCB();}
-      } else {CB_LIST=[];}
-    });
-
-    // Funções de escrita
-    window._fbSave=async function(lt){
-      const d={...lt};delete d._k;
-      if(lt._k)await _db.ref('lts/'+lt._k).update(d);
-      else{const r=_db.ref('lts').push();d.id=r.key;await r.set(d);}
-    };
-    window._fbDel=async function(lt){if(lt._k)await _db.ref('lts/'+lt._k).remove();};
-    window._fbSaveCronosList=async function(lista){
-      const clean=lista.map(c=>({id:c.id,nome:c.nome,meta:c.meta||null,
-        tarefas:(c.tarefas||[]).map(t=>{const d={...t};delete d._k;return d;})}));
-      await _db.ref('cronos_list').set(clean);
-    };
-    window._fbSaveCronos=async function(){if(window._fbSaveCronosList)await window._fbSaveCronosList(CRONOS_LIST);};
-    window._fbSaveCBList=async function(lista){await _db.ref('cb_list').set(lista.map(c=>({...c})));};
-
-    window._fbOk=true;
+  // Escuta LTs
+  _db.ref('lts').on('value',snap=>{
+    const v=snap.val();
+    window._LTS_FB=v?Object.entries(v).map(([k,r])=>({...r,_k:k})):[];
+    if(window._fbReady){LTS=window._LTS_FB;render();updAlarms();}
   });
 
-  // Monitorar conexão em tempo real
+  // Escuta CRONOS_LIST
+  _db.ref('cronos_list').on('value',snap=>{
+    const v=snap.val();
+    if(v!==null){
+      let lista=Array.isArray(v)?v:Object.keys(v).sort((a,b)=>Number(a)-Number(b)).map(k=>v[k]);
+      lista=lista.map(c=>({...c,
+        tarefas:Array.isArray(c.tarefas)?c.tarefas:
+          c.tarefas?Object.keys(c.tarefas).sort((a,b)=>Number(a)-Number(b)).map(k=>c.tarefas[k]):[]
+      }));
+      window._CRONOS_LIST_FB=lista;
+      if(window._fbReady){
+        CRONOS_LIST=lista;
+        if(CRONO_IDX>=CRONOS_LIST.length)CRONO_IDX=Math.max(0,CRONOS_LIST.length-1);
+        if(document.querySelector('#tab-crono.tp.on')){rCronoTabs();showCMeta();rCrono();}
+        updAlarms();
+      }
+    } else {window._CRONOS_LIST_FB=[];if(window._fbReady){CRONOS_LIST=[];rCronoTabs();showCMeta();}}
+  });
+
+  // Escuta CB_LIST
+  _db.ref('cb_list').on('value',snap=>{
+    const v=snap.val();
+    if(v!==null){
+      let lista=Array.isArray(v)?v:Object.keys(v).sort((a,b)=>Number(a)-Number(b)).map(k=>v[k]);
+      CB_LIST=lista;localStorage.setItem('cb_list5',JSON.stringify(CB_LIST));
+      if(CB_IDX>=CB_LIST.length)CB_IDX=Math.max(0,CB_LIST.length-1);
+      if(document.querySelector('#tab-cb.tp.on')){rCBTabs();rCB();}
+    } else {CB_LIST=[];}
+  });
+
+  // Funções de escrita
+  window._fbSave=async function(lt){
+    const d={...lt};delete d._k;
+    if(lt._k)await _db.ref('lts/'+lt._k).update(d);
+    else{const r=_db.ref('lts').push();d.id=r.key;await r.set(d);}
+  };
+  window._fbDel=async function(lt){if(lt._k)await _db.ref('lts/'+lt._k).remove();};
+  window._fbSaveCronosList=async function(lista){
+    const clean=lista.map(c=>({id:c.id,nome:c.nome,meta:c.meta||null,
+      tarefas:(c.tarefas||[]).map(t=>{const d={...t};delete d._k;return d;})}));
+    await _db.ref('cronos_list').set(clean);
+  };
+  window._fbSaveCronos=async function(){if(window._fbSaveCronosList)await window._fbSaveCronosList(CRONOS_LIST);};
+  window._fbSaveCBList=async function(lista){await _db.ref('cb_list').set(lista.map(c=>({...c})));};
+
+  // Monitorar conexão
   _db.ref('.info/connected').on('value',snap=>{
-    if(snap.val()===false&&window._fbAuthOk){
-      setFbStatus('🔴 Offline','#b44b5a');
-    }
+    const el=document.getElementById('fbst');
+    if(!el)return;
+    if(snap.val()){el.textContent='🟢 Online';el.style.color='#00c85a';}
+    else{el.textContent='🔴 Offline';el.style.color='#b44b5a';}
+  });
+
+  window._fbOk=true;
+  window.addEventListener('DOMContentLoaded',()=>{
+    const el=document.getElementById('fbst');
+    if(el){el.textContent='🟢 Online';el.style.color='#00c85a';}
   });
 
 }catch(e){
   console.error('Firebase:',e);
-  const el=document.getElementById('fbst');
-  if(el){el.textContent='🔴 Offline';el.style.color='#b44b5a';}
+  window.addEventListener('DOMContentLoaded',()=>{
+    const el=document.getElementById('fbst');
+    if(el){el.textContent='🔴 Offline';el.style.color='#b44b5a';}
+  });
 }
 
 </script>
@@ -3021,7 +2995,7 @@ function showQueueBadge(n){
   } else {b.style.display='none';}
 }
 async function syncPendingQueue(){
-  if(!navigator.onLine||!window._fbOk||!window._fbAuthOk)return;
+  if(!navigator.onLine||!window._fbOk)return;
   const q=getQueue();if(!q.length){showQueueBadge(0);return;}
   toast('⏳ Sincronizando '+q.length+' operação(ões)...');
   const failed=[];
@@ -3043,7 +3017,7 @@ window.addEventListener('load',()=>{
   if(q.length>50){saveQueue([]);showQueueBadge(0);console.log('Fila indevida limpa');}
   else if(q.length)showQueueBadge(q.length);
   // Aguardar auth antes de tentar sync
-  setTimeout(()=>{if(navigator.onLine&&window._fbAuthOk)syncPendingQueue();},5000);
+  setTimeout(()=>{if(navigator.onLine&&window._fbOk)syncPendingQueue();},5000);
 });
 
 
