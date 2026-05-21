@@ -15,6 +15,7 @@
 <!-- Firebase SDK compat -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script>
 const _FB={
   apiKey:"AIzaSyB0t5EyCmDwk8Hw_pkRQHWAVtcfBKCOqio",
@@ -27,83 +28,77 @@ const _FB={
 };
 window._fbOk=false;
 window._fbReady=false;
+window._fbAuthOk=false;
 try{
   firebase.initializeApp(_FB);
   const _db=firebase.database();
+  const _auth=firebase.auth();
 
-  // ── Escuta LTs em tempo real ──────────────────────────────────
-  _db.ref('lts').on('value',snap=>{
-    const v=snap.val();
-    window._LTS_FB=v?Object.entries(v).map(([k,r])=>({...r,_k:k})):[];
-    if(window._fbReady){LTS=window._LTS_FB;render();updAlarms();}
-  });
-
-  // ── Escuta CRONOS_LIST em tempo real ──────────────────────────
-  // Usa nó 'cronos_list' (separado do antigo 'cronos')
-  _db.ref('cronos_list').on('value',snap=>{
-    const v=snap.val();
-    if(v!==null){
-      // v é objeto {idx0:{...}, idx1:{...}} ou array serializado
-      let lista=[];
-      if(Array.isArray(v)){
-        lista=v;
-      } else {
-        // Firebase converte arrays em objetos com chaves numéricas
-        lista=Object.keys(v).sort((a,b)=>Number(a)-Number(b)).map(k=>v[k]);
-      }
-      // Restaurar tarefas que podem ter vindo como objeto
-      lista=lista.map(c=>({
-        ...c,
-        tarefas:Array.isArray(c.tarefas)?c.tarefas:
-          c.tarefas?Object.keys(c.tarefas).sort((a,b)=>Number(a)-Number(b)).map(k=>c.tarefas[k]):[]
-      }));
-      window._CRONOS_LIST_FB=lista;
-      if(window._fbReady){
-        CRONOS_LIST=lista;
-        // Manter índice dentro dos limites
-        if(CRONO_IDX>=CRONOS_LIST.length)CRONO_IDX=Math.max(0,CRONOS_LIST.length-1);
-        if(document.querySelector('#tab-crono.on')||document.querySelector('#tab-crono.tp.on')){
-          rCronoTabs();showCMeta();rCrono();
-        }
-        updAlarms();
-      }
-    } else {
-      window._CRONOS_LIST_FB=[];
-      if(window._fbReady){CRONOS_LIST=[];rCronoTabs();showCMeta();}
+  // Login anônimo automático — sem interação do usuário
+  _auth.onAuthStateChanged(user=>{
+    if(!user){
+      _auth.signInAnonymously().catch(e=>console.error('Auth erro:',e));
+      return;
     }
-  });
+    window._fbAuthOk=true;
 
-  // ── Funções de escrita LTs ────────────────────────────────────
-  window._fbSave=async function(lt){
-    const d={...lt};delete d._k;
-    if(lt._k){await _db.ref('lts/'+lt._k).update(d);}
-    else{const r=_db.ref('lts').push();d.id=r.key;await r.set(d);}
-  };
-  window._fbDel=async function(lt){
-    if(lt._k)await _db.ref('lts/'+lt._k).remove();
-  };
+    // Escuta LTs
+    _db.ref('lts').on('value',snap=>{
+      const v=snap.val();
+      window._LTS_FB=v?Object.entries(v).map(([k,r])=>({...r,_k:k})):[];
+      if(window._fbReady){LTS=window._LTS_FB;render();updAlarms();}
+    });
 
-  // ── Função de escrita CRONOS_LIST ─────────────────────────────
-  window._fbSaveCronosList=async function(lista){
-    // Limpar tarefas com _k antes de salvar (não existem no cronograma)
-    const clean=lista.map(c=>({
-      id:c.id,nome:c.nome,
-      meta:c.meta||null,
-      tarefas:(c.tarefas||[]).map(t=>{const d={...t};delete d._k;return d;})
-    }));
-    await _db.ref('cronos_list').set(clean);
-  };
+    // Escuta CRONOS_LIST
+    _db.ref('cronos_list').on('value',snap=>{
+      const v=snap.val();
+      if(v!==null){
+        let lista=Array.isArray(v)?v:Object.keys(v).sort((a,b)=>Number(a)-Number(b)).map(k=>v[k]);
+        lista=lista.map(c=>({...c,
+          tarefas:Array.isArray(c.tarefas)?c.tarefas:
+            c.tarefas?Object.keys(c.tarefas).sort((a,b)=>Number(a)-Number(b)).map(k=>c.tarefas[k]):[]
+        }));
+        window._CRONOS_LIST_FB=lista;
+        if(window._fbReady){
+          CRONOS_LIST=lista;
+          if(CRONO_IDX>=CRONOS_LIST.length)CRONO_IDX=Math.max(0,CRONOS_LIST.length-1);
+          if(document.querySelector('#tab-crono.tp.on')){rCronoTabs();showCMeta();rCrono();}
+          updAlarms();
+        }
+      } else {window._CRONOS_LIST_FB=[];if(window._fbReady){CRONOS_LIST=[];rCronoTabs();showCMeta();}}
+    });
 
-  // Manter compat com código legado que usa _fbSaveCronos
-  window._fbSaveCronos=async function(){
-    if(window._fbSaveCronosList)await window._fbSaveCronosList(CRONOS_LIST);
-  };
+    // Escuta CB_LIST
+    _db.ref('cb_list').on('value',snap=>{
+      const v=snap.val();
+      if(v!==null){
+        let lista=Array.isArray(v)?v:Object.keys(v).sort((a,b)=>Number(a)-Number(b)).map(k=>v[k]);
+        CB_LIST=lista;localStorage.setItem('cb_list5',JSON.stringify(CB_LIST));
+        if(CB_IDX>=CB_LIST.length)CB_IDX=Math.max(0,CB_LIST.length-1);
+        if(document.querySelector('#tab-cb.tp.on')){rCBTabs();rCB();}
+      } else {CB_LIST=[];}
+    });
 
-  window._fbOk=true;
-  window.addEventListener('DOMContentLoaded',()=>{
+    // Funções de escrita
+    window._fbSave=async function(lt){
+      const d={...lt};delete d._k;
+      if(lt._k)await _db.ref('lts/'+lt._k).update(d);
+      else{const r=_db.ref('lts').push();d.id=r.key;await r.set(d);}
+    };
+    window._fbDel=async function(lt){if(lt._k)await _db.ref('lts/'+lt._k).remove();};
+    window._fbSaveCronosList=async function(lista){
+      const clean=lista.map(c=>({id:c.id,nome:c.nome,meta:c.meta||null,
+        tarefas:(c.tarefas||[]).map(t=>{const d={...t};delete d._k;return d;})}));
+      await _db.ref('cronos_list').set(clean);
+    };
+    window._fbSaveCronos=async function(){if(window._fbSaveCronosList)await window._fbSaveCronosList(CRONOS_LIST);};
+    window._fbSaveCBList=async function(lista){await _db.ref('cb_list').set(lista.map(c=>({...c})));};
+
+    window._fbOk=true;
     const el=document.getElementById('fbst');
     if(el){el.textContent='🟢 Online';el.style.color='#00c85a';}
   });
+
 }catch(e){
   console.error('Firebase:',e);
   window.addEventListener('DOMContentLoaded',()=>{
@@ -111,6 +106,7 @@ try{
     if(el){el.textContent='🔴 Offline';el.style.color='#b44b5a';}
   });
 }
+
 </script>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500;600&display=swap');
