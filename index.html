@@ -3224,10 +3224,18 @@ function autoPreencherCartao(){
   const idx=document.getElementById('fc-cb-sel').value;
   if(idx==='')return;
   const cb=CB_LIST[parseInt(idx)];if(!cb)return;
+  // Equipamento = desc do cartão (ex: "VMB ENTRADA ÓLEO UH201")
   document.getElementById('fc-equip').value=cb.desc||cb.nome;
+  // TAG = primeira fonte cadastrada
   const pf=cb.fontes&&cb.fontes[0];
-  if(pf)document.getElementById('fc-tag').value=pf.tag||'';
-  toast('✔ Dados preenchidos de '+cb.nome);
+  if(pf){
+    document.getElementById('fc-tag').value=pf.tag||'';
+    // CCM = Nº do cartão da primeira fonte
+    const ccmEl=document.getElementById('fc-ccm');
+    if(ccmEl) ccmEl.value=pf.num||'';
+  }
+  const n=cb.fontes?cb.fontes.length:0;
+  toast(`✔ ${cb.nome} — ${n} fonte${n!==1?'s':''} serão impressas na tabela`);
 }
 
 function iniciarCanvas(){
@@ -3269,90 +3277,117 @@ async function gerarPDFCartaoFisico(){
   if(!window.jspdf){toast('⚠️ jsPDF não carregou','err');return;}
   const{jsPDF}=window.jspdf;
 
-  // Cartão físico: 165x250mm
-  const CW=165, CH=250;
-  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:[CW,CH]});
+  // Pegar fontes do cartão selecionado (para tabela)
+  const cbIdx=document.getElementById('fc-cb-sel').value;
+  const cb=cbIdx!==''?CB_LIST[parseInt(cbIdx)]:null;
+  const fontes=cb?cb.fontes||[]:[];
 
-  // Formatar data e hora
   const fmtData = dataV ? new Date(dataV+'T12:00').toLocaleDateString('pt-BR') : '';
   const fmtHora = hora||'';
-  const dataHora = [fmtData, fmtHora].filter(Boolean).join('  ');
 
-  // Fonte padrão — mesma do Excel (Arial/Helvetica, 10pt)
+  // Cartão físico: 165x250mm
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:[165,250]});
   doc.setFont('helvetica','bold');
   doc.setFontSize(9);
   doc.setTextColor(0,0,0);
 
-  // ── SEÇÃO BRANCA (topo) ──────────────────────────────────────
-  // Equipamento linha 1
-  doc.text(equip.substring(0,42), 54.1, 38.0);
-  // TAG linha 1
-  doc.text(tag.substring(0,14), 129.5, 38.0);
-  // Operador
+  // ── SEÇÃO BRANCA ─────────────────────────────────────
+  // Equipamento + TAG (linha 1)
+  doc.text(equip.substring(0,40), 51.2, 38.5);
+  doc.text(tag.substring(0,12),  117.6, 38.5);
+  // Operador + NP (linha 2)
   doc.setFont('helvetica','normal');
-  doc.text(resp.substring(0,28), 68.8, 46.5);
-  // NP
-  doc.text(np.substring(0,10), 110.1, 46.5);
+  doc.text(resp.substring(0,25), 64.1, 46.5);
+  doc.text(np.substring(0,8),   100.5, 46.5);
+  // Data (linha 4)
+  doc.text(fmtData, 55.4, 57.5);
+
+  // Fontes na tabela — coluna esquerda e direita
+  // Tabela começa em y≈67mm, cada linha ≈5.5mm
+  // Col esquerda: x_fontes=30mm  Col direita: x_fontes=88mm
+  if(fontes.length){
+    doc.setFontSize(7.5);
+    const TABLE_Y0 = 67.5;
+    const LINE_H  = 5.5;
+    const MAX_ROWS = 13; // linhas visíveis por coluna
+    fontes.forEach((f,i)=>{
+      const col = i < MAX_ROWS ? 0 : 1; // 0=esq, 1=dir
+      const row = i < MAX_ROWS ? i : i - MAX_ROWS;
+      if(row >= MAX_ROWS) return; // máx 26 fontes
+      const xBase = col === 0 ? 30.5 : 88.5;
+      const y = TABLE_Y0 + row * LINE_H;
+      // TAG na col fontes
+      doc.setFont('helvetica','bold');
+      doc.text((f.tag||'').substring(0,10), xBase, y);
+      // Descrição
+      doc.setFont('helvetica','normal');
+      doc.text((f.desc||'').substring(0,18), xBase+20, y);
+    });
+    doc.setFontSize(9);
+  }
+
+  // Assinatura
+  const ass=getAssinaturaDataURL();
+  if(ass) doc.addImage(ass,'PNG', 134, 43, 22, 6);
+
+  // ── SEÇÃO VERDE ──────────────────────────────────────
+  // CCM
+  if(ccm){doc.setFont('helvetica','bold');doc.text(ccm.substring(0,20), 30.0, 158.0);}
+  // Equipamento + TAG
+  doc.setFont('helvetica','bold');
+  doc.text(equip.substring(0,40), 55.4, 167.0);
+  doc.text(tag.substring(0,12),  117.6, 167.0);
+  // Operador + NP
+  doc.setFont('helvetica','normal');
+  doc.text(resp.substring(0,25), 64.1, 175.0);
+  doc.text(np.substring(0,8),   117.6, 175.0);
   // Data
-  doc.text(fmtData, 58.9, 57.9);
+  doc.text(fmtData, 40.0, 182.5);
 
-  // ── SEÇÃO VERDE (meio) ───────────────────────────────────────
-  // CCM (coluna esquerda da verde)
-  if(ccm){
-    doc.setFont('helvetica','bold');
-    doc.text(ccm.substring(0,18), 30.0, 134.4);
-  }
-  // Equipamento seção verde
+  // ── SEÇÃO VERMELHA ───────────────────────────────────
+  // CCM linha adicional
+  if(ccm){doc.setFont('helvetica','bold');doc.text(ccm.substring(0,20), 30.0, 207.0);}
+  // Equipamento + TAG
   doc.setFont('helvetica','bold');
-  doc.text(equip.substring(0,42), 58.9, 151.9);
-  // TAG seção verde
-  doc.text(tag.substring(0,14), 129.5, 151.9);
-  // Operador seção verde
+  doc.text(equip.substring(0,40), 55.4, 213.0);
+  doc.text(tag.substring(0,12),  117.6, 213.0);
+  // Operador + NP
   doc.setFont('helvetica','normal');
-  doc.text(resp.substring(0,28), 68.8, 151.9+8.5);
-  // NP seção verde
-  doc.text(np.substring(0,10), 110.1, 151.9+8.5);
-  // Data seção verde
-  doc.text(fmtData, 58.9, 151.9+16);
-
-  // ── SEÇÃO VERMELHA (baixo) ───────────────────────────────────
-  // Equipamento
-  doc.setFont('helvetica','bold');
-  doc.text(equip.substring(0,42), 58.9, 204.5);
-  // TAG
-  doc.text(tag.substring(0,14), 129.5, 204.5);
-  // Operador
-  doc.setFont('helvetica','normal');
-  doc.text(resp.substring(0,28), 75.2, 213.2);
-  // NP
-  doc.text(np.substring(0,10), 137.5, 213.2);
+  doc.text(resp.substring(0,25), 69.8, 221.0);
+  doc.text(np.substring(0,8),   124.6, 221.0);
   // Data + Hora
-  doc.text(fmtData, 42.0, 219.7);
-  if(fmtHora) doc.text(fmtHora, 90.0, 219.7);
-
-  // Assinatura (se tiver)
-  const ass = getAssinaturaDataURL();
-  if(ass){
-    // Visto seção branca
-    doc.addImage(ass,'PNG', 138, 44, 20, 6);
-    // Visto seção vermelha
-    doc.addImage(ass,'PNG', 138, 218, 20, 6);
-  }
+  doc.text(fmtData, 40.5, 228.0);
+  if(fmtHora) doc.text(fmtHora, 95.0, 228.0);
+  // Assinatura vermelha
+  if(ass) doc.addImage(ass,'PNG', 134, 225, 22, 6);
 
   document.getElementById('mform-cartao').classList.remove('on');
-  const fname='ImpressaoCartao_'+(tag||'tag').replace(/\s/g,'_')+'_'+new Date().toISOString().slice(0,10)+'.pdf';
-  try{
-    if(navigator.share&&navigator.canShare){
-      const blob=doc.output('blob');
-      const file=new File([blob],fname,{type:'application/pdf'});
-      if(navigator.canShare({files:[file]})){
-        await navigator.share({files:[file],title:'Impressão Cartão '+tag});
-        toast('✔ PDF enviado! Imprima sobre o cartão físico.');return;
-      }
+
+  // ── IMPRESSÃO DIRETA ─────────────────────────────────
+  // Gerar blob URL e abrir em iframe para imprimir direto
+  const blob = doc.output('blob');
+  const url  = URL.createObjectURL(blob);
+
+  // Criar iframe invisível e disparar impressão
+  let ifr = document.getElementById('print-iframe');
+  if(ifr) ifr.remove();
+  ifr = document.createElement('iframe');
+  ifr.id = 'print-iframe';
+  ifr.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:none';
+  ifr.src = url;
+  document.body.appendChild(ifr);
+  ifr.onload = ()=>{
+    try{
+      ifr.contentWindow.focus();
+      ifr.contentWindow.print();
+      toast('🖨️ Diálogo de impressão aberto! Configure papel 165×250mm.');
+    }catch(e){
+      // Fallback: abrir em nova aba
+      window.open(url,'_blank');
+      toast('🖨️ PDF aberto em nova aba — imprima de lá.');
     }
-    doc.save(fname);
-    toast('✔ PDF salvo! Coloque o cartão na impressora e imprima.');
-  }catch(err){if(err.name!=='AbortError')toast('⚠️ Erro: '+err.message,'err');}
+    setTimeout(()=>URL.revokeObjectURL(url), 60000);
+  };
 }
 
 function abrirFeedback(){
