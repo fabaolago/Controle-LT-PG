@@ -687,9 +687,20 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
     <div id="cb-tabs" style="display:flex;gap:4px;flex-wrap:wrap;flex:1"></div>
     <div style="display:flex;gap:6px;flex-wrap:wrap">
       <button class="btn bp bsm" onclick="novoCB()">+ Novo Cartão</button>
-      <button class="btn bs bsm" onclick="document.getElementById('cb-import-input').click()">📂 Importar Excel</button>
+      <button class="btn bs bsm" onclick="document.getElementById('cb-import-input').click()">📂 Importar Cartões</button>
       <input type="file" id="cb-import-input" accept=".xlsx,.xls" style="display:none" onchange="importarCBExcel(event)">
+      <button class="btn bs bsm" onclick="document.getElementById('tag-import-input').click()">🏷️ Importar TAGs</button>
+      <input type="file" id="tag-import-input" accept=".xlsx,.xls" style="display:none" onchange="importarTAGs(event)">
+      <span id="tag-count" style="font-size:10px;color:var(--muted);align-self:center"></span>
     </div>
+  </div>
+
+  <!-- Filtro por linha -->
+  <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
+    <button class="btn bs bsm" id="cb-linha-all" onclick="setCBLinha('')" style="background:var(--sz-inov);color:#fff">Todas</button>
+    <button class="btn bs bsm" id="cb-linha-1" onclick="setCBLinha('L1')">Linha 1</button>
+    <button class="btn bs bsm" id="cb-linha-2" onclick="setCBLinha('L2')">Linha 2</button>
+    <button class="btn bs bsm" id="cb-linha-sem" onclick="setCBLinha('sem')">Sem linha</button>
   </div>
 
   <!-- Cartão ativo -->
@@ -1003,18 +1014,36 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
 
 <!-- MODAL PREENCHER CARTÃO FÍSICO -->
 <div class="mo" id="mform-cartao" onclick="closeMo(event,'mform-cartao')">
-  <div class="md" style="max-width:480px">
+  <div class="md" style="max-width:500px">
     <h3>📋 Imprimir Dados no Cartão</h3>
-    <div style="font-size:11px;color:var(--muted);margin-bottom:4px">
-      Preencha os campos e coloque o cartão físico na impressora. O PDF imprime <b>só o texto</b> nas posições exatas dos campos.
+    <div style="font-size:10px;color:var(--sz-aml);background:rgba(25,50,200,.1);border:1px solid var(--sz-inov);border-radius:4px;padding:6px 10px;margin-bottom:10px">
+      📐 Cartão: 165×250mm — Configure a impressora com esse tamanho personalizado
     </div>
-    <div style="font-size:10px;color:var(--sz-aml);background:rgba(25,50,200,.1);border:1px solid var(--sz-inov);border-radius:4px;padding:6px 10px;margin-bottom:12px">
-      📐 Cartão: 165 × 250mm — Configure a impressora com esse tamanho de papel
-    </div>
-    <div style="display:grid;gap:10px">
+    <div style="display:grid;gap:9px">
+
+      <!-- Cartão a imprimir -->
+      <div style="background:var(--card2);border:1px solid var(--bdr);border-radius:5px;padding:10px">
+        <div style="font-size:10px;color:var(--sz-aml);font-weight:700;margin-bottom:6px">🔗 Cartão bloqueador</div>
+        <div style="display:flex;gap:7px;align-items:center">
+          <select id="fc-cb-sel" style="flex:1;font-size:12px">
+            <option value="">— Selecione para preencher automaticamente —</option>
+          </select>
+          <button class="btn bp bsm" onclick="autoPreencherCartao()">✔ Preencher</button>
+        </div>
+        <div style="font-size:9px;color:var(--muted);margin-top:4px">Ao imprimir, cada fonte de energia será um cartão separado</div>
+      </div>
+
+      <!-- TAG com autocomplete -->
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-        <div class="fi"><label>Equipamento *</label><input id="fc-equip" placeholder="Ex: Bomba Licor"></div>
-        <div class="fi"><label>LI/TAG *</label><input id="fc-tag" placeholder="Ex: 121BB001"></div>
+        <div class="fi">
+          <label>LI/TAG (opcional)</label>
+          <input id="fc-tag" placeholder="Ex: 322UH201" oninput="onTagInput(this.value)" list="dl-fc-tag">
+          <datalist id="dl-fc-tag"></datalist>
+        </div>
+        <div class="fi">
+          <label>Equipamento *</label>
+          <input id="fc-equip" placeholder="Preenchido pelo TAG ou manual">
+        </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <div class="fi"><label>Operador / Responsável</label><input id="fc-resp" placeholder="Nome"></div>
@@ -1023,34 +1052,33 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
         <div class="fi"><label>Data</label><input type="date" id="fc-data"></div>
         <div class="fi"><label>Hora</label><input type="time" id="fc-hora"></div>
-        <div class="fi"><label>CCM</label><input id="fc-ccm" placeholder="Ex: BT-CCM-1.8.2C2T4"></div>
+        <div class="fi"><label>CCM</label><input id="fc-ccm" placeholder="CCM automático ou manual"></div>
       </div>
-      <!-- Assinatura -->
+
+      <!-- Visto / Assinatura -->
       <div class="fi">
-        <label>Visto / Rubrica (opcional — dedo ou mouse)</label>
-        <div style="position:relative;border:1px solid var(--bdr);border-radius:5px;background:#fff;overflow:hidden">
-          <canvas id="fc-canvas" width="460" height="70"
-            style="display:block;width:100%;height:70px;cursor:crosshair;touch-action:none"></canvas>
-          <button onclick="limparAssinatura()"
-            style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,.15);border:none;
-            border-radius:3px;color:#333;font-size:10px;padding:2px 7px;cursor:pointer">✕</button>
+        <label>Visto / Rubrica</label>
+        <div style="display:flex;gap:6px;margin-bottom:4px">
+          <button class="btn bs bsm" onclick="setAssMode('draw')" id="ass-btn-draw">✏️ Desenhar</button>
+          <button class="btn bs bsm" onclick="setAssMode('upload')" id="ass-btn-upload">📎 Anexar imagem</button>
+          <button class="btn bs bsm" onclick="limparAssinatura()">✕ Limpar</button>
+        </div>
+        <!-- Canvas desenho -->
+        <div id="ass-draw-area" style="position:relative;border:1px solid var(--bdr);border-radius:5px;background:#fff;overflow:hidden">
+          <canvas id="fc-canvas" width="460" height="60"
+            style="display:block;width:100%;height:60px;cursor:crosshair;touch-action:none"></canvas>
+        </div>
+        <!-- Upload imagem -->
+        <div id="ass-upload-area" style="display:none">
+          <input type="file" id="fc-ass-file" accept="image/*" onchange="onAssUpload(event)"
+            style="font-size:11px;width:100%">
+          <img id="fc-ass-preview" style="max-height:50px;margin-top:4px;display:none;border:1px solid var(--bdr);border-radius:4px">
         </div>
       </div>
-      <!-- Auto-preencher do cartão cadastrado -->
-      <div style="background:var(--card2);border:1px solid var(--bdr);border-radius:5px;padding:10px">
-        <div style="font-size:10px;color:var(--sz-aml);font-weight:700;margin-bottom:6px">
-          🔗 Preencher automaticamente do cartão cadastrado
-        </div>
-        <div style="display:flex;gap:7px;align-items:center">
-          <select id="fc-cb-sel" style="flex:1;font-size:12px">
-            <option value="">— Selecione um cartão —</option>
-          </select>
-          <button class="btn bp bsm" onclick="autoPreencherCartao()">✔ Preencher</button>
-        </div>
-      </div>
+
     </div>
-    <div class="fa" style="margin-top:14px">
-      <button class="btn bp" onclick="gerarPDFCartaoFisico()">🖨️ Gerar PDF p/ Impressão</button>
+    <div class="fa" style="margin-top:12px">
+      <button class="btn bp" onclick="gerarPDFCartaoFisico()">🖨️ Imprimir Cartão</button>
       <button class="btn bs" onclick="document.getElementById('mform-cartao').classList.remove('on')">Cancelar</button>
     </div>
   </div>
@@ -3191,7 +3219,168 @@ window.addEventListener('load',()=>{
   setTimeout(()=>{if(navigator.onLine&&window._fbOk)syncPendingQueue();},5000);
 });
 
-// ═══ CARTÃO FÍSICO SUZANO ══════════════════════════════════════════
+// ═══ TABELA DE TAGs ════════════════════════════════════════════════
+let TAG_TABLE = JSON.parse(localStorage.getItem('lt_tag_table')||'[]');
+let _cbLinhaFiltro = '';
+
+function saveTAGTable(){localStorage.setItem('lt_tag_table',JSON.stringify(TAG_TABLE));}
+
+function importarTAGs(e){
+  const file=e.target.files[0];if(!file)return;
+  e.target.value='';
+  if(typeof XLSX==='undefined'){toast('⚠️ Recarregue a página','err');return;}
+  toast('⏳ Importando TAGs...');
+  const r=new FileReader();
+  r.onload=ev=>{
+    try{
+      const wb=XLSX.read(new Uint8Array(ev.target.result),{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const json=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      const novos=[];
+      // Detectar colunas: procurar cabeçalho TAG, DESCRIÇÃO/DESC, CCM
+      let hRow=-1,colTag=-1,colDesc=-1,colCCM=-1;
+      for(let i=0;i<Math.min(5,json.length);i++){
+        const row=json[i].map(v=>(v||'').toString().toUpperCase());
+        const ti=row.findIndex(c=>c.includes('TAG'));
+        const di=row.findIndex(c=>c.includes('DESC')||c.includes('EQUIP'));
+        const ci=row.findIndex(c=>c.includes('CCM'));
+        if(ti>=0||di>=0){hRow=i;colTag=ti;colDesc=di>=0?di:(ti>=0?ti+1:-1);colCCM=ci;break;}
+      }
+      // Se não encontrou cabeçalho, assume col A=TAG, B=DESC, C=CCM
+      if(hRow===-1){hRow=0;colTag=0;colDesc=1;colCCM=2;}
+      for(let i=hRow+1;i<json.length;i++){
+        const row=json[i];
+        const tag=(row[colTag]||'').toString().trim().toUpperCase();
+        const desc=(row[colDesc]||'').toString().trim().toUpperCase();
+        const ccm=colCCM>=0?(row[colCCM]||'').toString().trim().toUpperCase():'';
+        if(tag||desc) novos.push({tag,desc,ccm});
+      }
+      TAG_TABLE=novos;saveTAGTable();
+      updTagCount();
+      toast(`✔ ${novos.length} TAGs importados!`);
+    }catch(err){toast('⚠️ Erro: '+err.message,'err');}
+  };
+  r.readAsArrayBuffer(file);
+}
+
+function updTagCount(){
+  const el=document.getElementById('tag-count');
+  if(el) el.textContent=TAG_TABLE.length?`${TAG_TABLE.length} TAGs`:'' ;
+  // Atualizar datalist
+  const dl=document.getElementById('dl-fc-tag');
+  if(dl) dl.innerHTML=TAG_TABLE.map(t=>`<option value="${t.tag}">${t.desc}</option>`).join('');
+}
+
+function onTagInput(val){
+  const v=val.trim().toUpperCase();
+  if(!v) return;
+  const found=TAG_TABLE.find(t=>t.tag===v||t.tag.startsWith(v));
+  if(found){
+    document.getElementById('fc-equip').value=found.desc||'';
+    const ccmEl=document.getElementById('fc-ccm');
+    if(ccmEl&&found.ccm) ccmEl.value=found.ccm;
+  }
+}
+
+// ═══ LINHA 1 / LINHA 2 ═════════════════════════════════════════════
+function setCBLinha(linha){
+  _cbLinhaFiltro=linha;
+  ['all','1','2','sem'].forEach(k=>{
+    const el=document.getElementById('cb-linha-'+k);
+    if(el){
+      const ativo=(k==='all'&&linha==='')||(k==='1'&&linha==='L1')||(k==='2'&&linha==='L2')||(k==='sem'&&linha==='sem');
+      el.style.background=ativo?'var(--sz-inov)':'';
+      el.style.color=ativo?'#fff':'';
+    }
+  });
+  // Encontrar primeiro cartão do filtro
+  const lista=getCBFiltrados();
+  if(lista.length){
+    CB_IDX=CB_LIST.indexOf(lista[0]);
+  }
+  rCBTabs();rCB();
+}
+
+function getCBFiltrados(){
+  if(!_cbLinhaFiltro) return CB_LIST;
+  if(_cbLinhaFiltro==='sem') return CB_LIST.filter(c=>!c.linha||c.linha==='');
+  return CB_LIST.filter(c=>c.linha===_cbLinhaFiltro);
+}
+
+// Atualizar rCBTabs para mostrar só os filtrados com grupo visual
+const _rCBTabsOrig = rCBTabs;
+rCBTabs = function(){
+  const bar=document.getElementById('cb-tabs');if(!bar)return;
+  if(!CB_LIST.length){bar.innerHTML='';return;}
+  const lista=getCBFiltrados();
+  if(!lista.length){bar.innerHTML='<span style="font-size:11px;color:var(--muted)">Nenhum cartão neste filtro</span>';return;}
+  bar.innerHTML=lista.map(c=>{
+    const i=CB_LIST.indexOf(c);
+    const linhaLabel=c.linha?` <span style="font-size:9px;opacity:.7">${c.linha}</span>`:'';
+    return`<button class="cb-tab ${i===CB_IDX?'on':''}" onclick="switchCB(${i})" title="${c.area||'Todas as áreas'}">${c.nome}${linhaLabel}</button>`;
+  }).join('');
+};
+
+// Atualizar novoCB e editarCB para incluir campo linha
+const _novoCBOrig=novoCB;
+novoCB=function(){
+  const nome=prompt('Nome do cartão bloqueador:','CB0'+(CB_LIST.length+1));
+  if(!nome)return;
+  const desc=prompt('Descrição / Equipamento:','')||'';
+  const areas=['Extração Cavacos','Cozimento','Pré Branqueamento','Depuração','Branqueamento','Laje DDW','Planta Química'];
+  const areaStr=prompt('Área:\n'+areas.map((a,i)=>(i+1)+'. '+a).join('\n'),'')||'';
+  const area=areas.find(a=>a.toLowerCase().includes(areaStr.toLowerCase().trim()))||areaStr||'';
+  const linha=prompt('Linha (L1, L2 ou deixe vazio):','').toUpperCase().trim();
+  const linhaVal=linha==='L1'?'L1':linha==='L2'?'L2':'';
+  CB_LIST.push({id:'cb_'+Date.now(),nome,desc,area,linha:linhaVal,fontes:[]});
+  CB_IDX=CB_LIST.length-1;
+  svCB();rCBTabs();rCB();
+};
+
+// ═══ ASSINATURA UPLOAD ═════════════════════════════════════════════
+let _assMode='draw';
+let _assUploadDataURL=null;
+
+function setAssMode(mode){
+  _assMode=mode;
+  document.getElementById('ass-draw-area').style.display=mode==='draw'?'block':'none';
+  document.getElementById('ass-upload-area').style.display=mode==='upload'?'block':'none';
+  document.getElementById('ass-btn-draw').style.background=mode==='draw'?'var(--sz-inov)':'';
+  document.getElementById('ass-btn-draw').style.color=mode==='draw'?'#fff':'';
+  document.getElementById('ass-btn-upload').style.background=mode==='upload'?'var(--sz-inov)':'';
+  document.getElementById('ass-btn-upload').style.color=mode==='upload'?'#fff':'';
+}
+
+function onAssUpload(e){
+  const file=e.target.files[0];if(!file)return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    _assUploadDataURL=ev.target.result;
+    const prev=document.getElementById('fc-ass-preview');
+    if(prev){prev.src=ev.target.result;prev.style.display='block';}
+  };
+  r.readAsDataURL(file);
+}
+
+// Override getAssinaturaDataURL para suportar upload
+const _getAssOrig=getAssinaturaDataURL;
+getAssinaturaDataURL=function(){
+  if(_assMode==='upload') return _assUploadDataURL||null;
+  return _getAssOrig();
+};
+
+// Override limparAssinatura
+const _limparAssOrig=limparAssinatura;
+limparAssinatura=function(){
+  _limparAssOrig();
+  _assUploadDataURL=null;
+  const prev=document.getElementById('fc-ass-preview');
+  if(prev){prev.src='';prev.style.display='none';}
+  const inp=document.getElementById('fc-ass-file');
+  if(inp)inp.value='';
+};
+
+
 let _fcCanvas=null,_fcCtx=null,_fcDrawing=false,_fcLastX=0,_fcLastY=0;
 
 function abrirFormCartao(){
@@ -3263,130 +3452,72 @@ function getAssinaturaDataURL(){
 }
 
 async function gerarPDFCartaoFisico(){
-  const equip = document.getElementById('fc-equip').value.trim();
-  const tag   = document.getElementById('fc-tag').value.trim();
-  const resp  = document.getElementById('fc-resp').value.trim();
-  const np    = document.getElementById('fc-np').value.trim();
-  const dataV = document.getElementById('fc-data').value;
-  const hora  = document.getElementById('fc-hora').value;
-  const ccm   = document.getElementById('fc-ccm')?.value.trim()||'';
-
-  if(!equip||!tag){toast('⚠️ Preencha Equipamento e TAG','err');return;}
-
+  const equip=document.getElementById('fc-equip').value.trim();
+  const tag=document.getElementById('fc-tag').value.trim();
+  const resp=document.getElementById('fc-resp').value.trim();
+  const np=document.getElementById('fc-np').value.trim();
+  const dataV=document.getElementById('fc-data').value;
+  const hora=document.getElementById('fc-hora').value;
+  const ccm=document.getElementById('fc-ccm')?.value.trim()||'';
+  const cbIdx=document.getElementById('fc-cb-sel').value;
+  const cb=cbIdx!==''?CB_LIST[parseInt(cbIdx)]:null;
+  const fontes=cb&&cb.fontes&&cb.fontes.length?cb.fontes:
+    (equip||tag?[{tag:tag,desc:equip,num:ccm}]:[]);
+  if(!fontes.length){toast('⚠️ Selecione um cartão ou preencha o Equipamento','err');return;}
   let t=0;while(!window.jspdf&&t<15){await new Promise(r=>setTimeout(r,200));t++;}
   if(!window.jspdf){toast('⚠️ jsPDF não carregou','err');return;}
   const{jsPDF}=window.jspdf;
-
-  // Pegar fontes do cartão selecionado (para tabela)
-  const cbIdx=document.getElementById('fc-cb-sel').value;
-  const cb=cbIdx!==''?CB_LIST[parseInt(cbIdx)]:null;
-  const fontes=cb?cb.fontes||[]:[];
-
-  const fmtData = dataV ? new Date(dataV+'T12:00').toLocaleDateString('pt-BR') : '';
-  const fmtHora = hora||'';
-
-  // Cartão físico: 165x250mm
-  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:[165,250]});
-  doc.setFont('helvetica','bold');
-  doc.setFontSize(9);
-  doc.setTextColor(0,0,0);
-
-  // ── SEÇÃO BRANCA ─────────────────────────────────────
-  // Equipamento + TAG (linha 1)
-  doc.text(equip.substring(0,40), 51.2, 38.5);
-  doc.text(tag.substring(0,12),  117.6, 38.5);
-  // Operador + NP (linha 2)
-  doc.setFont('helvetica','normal');
-  doc.text(resp.substring(0,25), 64.1, 46.5);
-  doc.text(np.substring(0,8),   100.5, 46.5);
-  // Data (linha 4)
-  doc.text(fmtData, 55.4, 57.5);
-
-  // Fontes na tabela — coluna esquerda e direita
-  // Tabela começa em y≈67mm, cada linha ≈5.5mm
-  // Col esquerda: x_fontes=30mm  Col direita: x_fontes=88mm
-  if(fontes.length){
-    doc.setFontSize(7.5);
-    const TABLE_Y0 = 67.5;
-    const LINE_H  = 5.5;
-    const MAX_ROWS = 13; // linhas visíveis por coluna
-    fontes.forEach((f,i)=>{
-      const col = i < MAX_ROWS ? 0 : 1; // 0=esq, 1=dir
-      const row = i < MAX_ROWS ? i : i - MAX_ROWS;
-      if(row >= MAX_ROWS) return; // máx 26 fontes
-      const xBase = col === 0 ? 30.5 : 88.5;
-      const y = TABLE_Y0 + row * LINE_H;
-      // TAG na col fontes
-      doc.setFont('helvetica','bold');
-      doc.text((f.tag||'').substring(0,10), xBase, y);
-      // Descrição
-      doc.setFont('helvetica','normal');
-      doc.text((f.desc||'').substring(0,18), xBase+20, y);
-    });
-    doc.setFontSize(9);
-  }
-
-  // Assinatura
+  const fmtData=dataV?new Date(dataV+'T12:00').toLocaleDateString('pt-BR'):'';
+  const fmtHora=hora||'';
   const ass=getAssinaturaDataURL();
-  if(ass) doc.addImage(ass,'PNG', 134, 43, 22, 6);
-
-  // ── SEÇÃO VERDE ──────────────────────────────────────
-  // CCM
-  if(ccm){doc.setFont('helvetica','bold');doc.text(ccm.substring(0,20), 30.0, 158.0);}
-  // Equipamento + TAG
-  doc.setFont('helvetica','bold');
-  doc.text(equip.substring(0,40), 55.4, 167.0);
-  doc.text(tag.substring(0,12),  117.6, 167.0);
-  // Operador + NP
-  doc.setFont('helvetica','normal');
-  doc.text(resp.substring(0,25), 64.1, 175.0);
-  doc.text(np.substring(0,8),   117.6, 175.0);
-  // Data
-  doc.text(fmtData, 40.0, 182.5);
-
-  // ── SEÇÃO VERMELHA ───────────────────────────────────
-  // CCM linha adicional
-  if(ccm){doc.setFont('helvetica','bold');doc.text(ccm.substring(0,20), 30.0, 207.0);}
-  // Equipamento + TAG
-  doc.setFont('helvetica','bold');
-  doc.text(equip.substring(0,40), 55.4, 213.0);
-  doc.text(tag.substring(0,12),  117.6, 213.0);
-  // Operador + NP
-  doc.setFont('helvetica','normal');
-  doc.text(resp.substring(0,25), 69.8, 221.0);
-  doc.text(np.substring(0,8),   124.6, 221.0);
-  // Data + Hora
-  doc.text(fmtData, 40.5, 228.0);
-  if(fmtHora) doc.text(fmtHora, 95.0, 228.0);
-  // Assinatura vermelha
-  if(ass) doc.addImage(ass,'PNG', 134, 225, 22, 6);
-
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:[165,250]});
+  fontes.forEach((fonte,idx)=>{
+    if(idx>0)doc.addPage([165,250],'portrait');
+    const eqp=(fonte.desc||equip||'').substring(0,40);
+    const tg=(fonte.tag||tag||'').substring(0,12);
+    const ccmV=(fonte.num||ccm||'').substring(0,20);
+    doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(0,0,0);
+    // BRANCA
+    doc.text(eqp,51.2,38.5);
+    doc.text(tg,117.6,38.5);
+    doc.setFont('helvetica','normal');
+    doc.text(resp.substring(0,25),64.1,46.5);
+    doc.text(np.substring(0,8),100.5,46.5);
+    doc.text(fmtData,55.4,57.5);
+    if(ccmV){doc.setFont('helvetica','bold');doc.text(ccmV,30.0,64.5);doc.setFont('helvetica','normal');}
+    if(ass)doc.addImage(ass,'PNG',134,43,22,6);
+    // VERDE
+    doc.setFont('helvetica','bold');
+    doc.text(eqp,55.4,167.0);doc.text(tg,117.6,167.0);
+    doc.setFont('helvetica','normal');
+    doc.text(resp.substring(0,25),64.1,175.0);
+    doc.text(np.substring(0,8),117.6,175.0);
+    doc.text(fmtData,40.0,182.5);
+    // VERMELHA
+    doc.setFont('helvetica','bold');
+    doc.text(eqp,55.4,213.0);doc.text(tg,117.6,213.0);
+    doc.setFont('helvetica','normal');
+    doc.text(resp.substring(0,25),69.8,221.0);
+    doc.text(np.substring(0,8),124.6,221.0);
+    doc.text(fmtData,40.5,228.0);
+    if(fmtHora)doc.text(fmtHora,95.0,228.0);
+    if(ass)doc.addImage(ass,'PNG',134,225,22,6);
+  });
   document.getElementById('mform-cartao').classList.remove('on');
-
-  // ── IMPRESSÃO DIRETA ─────────────────────────────────
-  // Gerar blob URL e abrir em iframe para imprimir direto
-  const blob = doc.output('blob');
-  const url  = URL.createObjectURL(blob);
-
-  // Criar iframe invisível e disparar impressão
-  let ifr = document.getElementById('print-iframe');
-  if(ifr) ifr.remove();
-  ifr = document.createElement('iframe');
-  ifr.id = 'print-iframe';
-  ifr.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:none';
-  ifr.src = url;
+  toast('🖨️ '+fontes.length+' cartão(ões) — abrindo impressão...');
+  const blob=doc.output('blob');
+  const url=URL.createObjectURL(blob);
+  let ifr=document.getElementById('print-iframe');
+  if(ifr)ifr.remove();
+  ifr=document.createElement('iframe');
+  ifr.id='print-iframe';
+  ifr.style.cssText='position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:none';
+  ifr.src=url;
   document.body.appendChild(ifr);
-  ifr.onload = ()=>{
-    try{
-      ifr.contentWindow.focus();
-      ifr.contentWindow.print();
-      toast('🖨️ Diálogo de impressão aberto! Configure papel 165×250mm.');
-    }catch(e){
-      // Fallback: abrir em nova aba
-      window.open(url,'_blank');
-      toast('🖨️ PDF aberto em nova aba — imprima de lá.');
-    }
-    setTimeout(()=>URL.revokeObjectURL(url), 60000);
+  ifr.onload=()=>{
+    try{ifr.contentWindow.focus();ifr.contentWindow.print();}
+    catch(e){window.open(url,'_blank');}
+    setTimeout(()=>URL.revokeObjectURL(url),60000);
   };
 }
 
@@ -3529,6 +3660,7 @@ document.addEventListener('DOMContentLoaded',function(){
   render();
   hjLoad();
   initAutocomplete();
+  updTagCount();
   setInterval(updAlarms,60000);
 });
 </script>
