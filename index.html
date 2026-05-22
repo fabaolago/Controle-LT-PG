@@ -734,6 +734,19 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
     </div>
     <!-- KPIs de acesso -->
     <div class="ks" style="margin-bottom:20px" id="adm-kpis"></div>
+    <!-- Arquivamento -->
+    <div class="st" style="margin-top:20px">📦 Arquivamento de Parada</div>
+    <div style="background:var(--card);border:1px solid var(--bdr);border-radius:6px;padding:14px;margin-bottom:10px">
+      <div style="font-size:12px;color:var(--muted);margin-bottom:10px">
+        Arquiva todas as LTs atuais com um nome de parada. Os dados ficam salvos e podem ser consultados depois. O app fica limpo para a próxima parada.
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+        <input id="adm-arq-nome" placeholder="Nome da parada (ex: PG DDW Maio/2026)"
+          style="flex:1;min-width:180px;font-size:12px">
+        <button class="btn bp bsm" onclick="arquivarParada()">📦 Arquivar e Limpar</button>
+      </div>
+      <div id="adm-arq-lista"></div>
+    </div>
     <!-- Feedbacks -->
     <div class="st">💬 Feedbacks e Sugestões</div>
     <div class="flt" style="margin-bottom:10px">
@@ -2654,6 +2667,108 @@ function definirAreaCB(){
 }
 
 
+
+
+// ═══ ARQUIVAMENTO DE PARADA ════════════════════════════════════════
+const ARQ_KEY='lt_arquivos_paradas';
+function getArquivos(){return JSON.parse(localStorage.getItem(ARQ_KEY)||'[]');}
+function saveArquivos(a){localStorage.setItem(ARQ_KEY,JSON.stringify(a));}
+
+async function arquivarParada(){
+  if(!_admOk){toast('⚠️ Faça login no ADM primeiro','err');return;}
+  const nome=document.getElementById('adm-arq-nome').value.trim();
+  if(!nome){toast('⚠️ Digite um nome para a parada','err');return;}
+  if(!LTS.length){toast('⚠️ Não há LTs para arquivar','err');return;}
+  if(!confirm(`Arquivar ${LTS.length} LTs como "${nome}" e limpar o app para nova parada?`))return;
+  const arquivo={
+    id:'arq_'+Date.now(),nome,data:new Date().toISOString(),
+    total:LTS.length,
+    concluidas:LTS.filter(l=>l.status==='C').length,
+    canceladas:LTS.filter(l=>l.status==='X').length,
+    lts:JSON.parse(JSON.stringify(LTS))
+  };
+  const arqs=getArquivos();arqs.push(arquivo);saveArquivos(arqs);
+  if(window._fbOk){
+    try{await firebase.database().ref('arquivos/'+arquivo.id).set(arquivo);}catch(e){}
+  }
+  if(window._fbOk){try{await firebase.database().ref('lts').remove();}catch(e){}}
+  LTS=[];sv();render();updAlarms();
+  document.getElementById('adm-arq-nome').value='';
+  rAdm();
+  toast(`✔ ${arquivo.total} LTs arquivadas! App limpo para nova parada.`);
+}
+
+function rArqLista(){
+  const el=document.getElementById('adm-arq-lista');if(!el)return;
+  const arqs=getArquivos().slice().reverse();
+  if(!arqs.length){el.innerHTML='<div style="font-size:11px;color:var(--muted);padding:4px 0">Nenhuma parada arquivada.</div>';return;}
+  el.innerHTML=arqs.map(a=>`
+    <div style="background:var(--card2);border:1px solid var(--bdr);border-radius:5px;padding:10px;margin-bottom:6px">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
+        <div>
+          <div style="font-family:var(--fh);font-size:13px;font-weight:800;color:var(--sz-aml)">${a.nome}</div>
+          <div style="font-size:10px;color:var(--muted)">${new Date(a.data).toLocaleString('pt-BR')} · ${a.total} LTs · ${a.concluidas} concluídas · ${a.canceladas} canceladas</div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn bs bsm" onclick="verArquivo('${a.id}')">👁 Ver LTs</button>
+          <button class="btn bp bsm" onclick="exportarArquivoPDF('${a.id}')">📤 PDF</button>
+          <button class="btn bd2 bsm" onclick="deletarArquivo('${a.id}')">🗑</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+function verArquivo(id){
+  const a=getArquivos().find(x=>x.id===id);if(!a)return;
+  let mo=document.getElementById('mo-arquivo');
+  if(!mo){
+    mo=document.createElement('div');mo.id='mo-arquivo';mo.className='mo';
+    mo.innerHTML=`<div class="md" style="max-width:700px">
+      <div id="mo-arquivo-body"></div>
+      <div class="fa"><button class="btn bs" onclick="document.getElementById('mo-arquivo').classList.remove('on')">Fechar</button></div>
+    </div>`;
+    mo.onclick=e=>{if(e.target===mo)mo.classList.remove('on');};
+    document.body.appendChild(mo);
+  }
+  document.getElementById('mo-arquivo-body').innerHTML=`
+    <div style="font-family:var(--fh);font-size:15px;font-weight:800;color:var(--sz-aml);margin-bottom:10px">
+      📦 ${a.nome} — ${a.total} LTs
+    </div>
+    <div style="max-height:60vh;overflow-y:auto">
+    <table style="width:100%;font-size:11px;border-collapse:collapse">
+      <thead><tr style="background:var(--card2)">
+        <th style="padding:5px;text-align:left">Nº LT</th>
+        <th style="padding:5px;text-align:left">Disciplina</th>
+        <th style="padding:5px;text-align:left">Equipamento</th>
+        <th style="padding:5px;text-align:left">Empresa</th>
+        <th style="padding:5px;text-align:left">Status</th>
+      </tr></thead>
+      <tbody>${a.lts.map((l,i)=>`
+        <tr style="background:${i%2===0?'var(--card)':'var(--card2)'}">
+          <td style="padding:5px;font-weight:700;color:var(--sz-aml)">${l.num}</td>
+          <td style="padding:5px">${dn(l.disc).n}</td>
+          <td style="padding:5px">${(l.equip||'').substring(0,30)}</td>
+          <td style="padding:5px">${l.empresa||'—'}</td>
+          <td style="padding:5px"><span class="sp sp-${l.status}">${stl(l.status)}</span></td>
+        </tr>`).join('')}
+      </tbody>
+    </table></div>`;
+  mo.classList.add('on');
+}
+
+async function exportarArquivoPDF(id){
+  const a=getArquivos().find(x=>x.id===id);if(!a)return;
+  try{const doc=buildPDF(a.lts,'Arquivo: '+a.nome);doc.save('Arquivo_'+a.nome.replace(/[^a-zA-Z0-9]/g,'_')+'.pdf');toast('✔ PDF exportado!');}
+  catch(e){toast('⚠️ '+e.message,'err');}
+}
+
+function deletarArquivo(id){
+  if(!confirm('Excluir este arquivo permanentemente?'))return;
+  saveArquivos(getArquivos().filter(x=>x.id!==id));
+  if(window._fbOk){try{firebase.database().ref('arquivos/'+id).remove();}catch(e){}}
+  rAdm();toast('🗑️ Arquivo excluído.');
+}
+
 const SENHA_ADM = 'pg26';
 let _admOk = false;
 let _starVal = 0;
@@ -3084,11 +3199,11 @@ function abrirFormCartao(){
   const now=new Date();
   document.getElementById('fc-data').value=now.toISOString().slice(0,10);
   document.getElementById('fc-hora').value=now.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-  document.getElementById('fc-num').value='';
   document.getElementById('fc-resp').value='';
   document.getElementById('fc-np').value='';
+  const ccmEl=document.getElementById('fc-ccm');if(ccmEl)ccmEl.value='';
   if(c){
-    document.getElementById('fc-tag').value=(c.desc||'').split(/[\s\-]/)[0]||'';
+    document.getElementById('fc-tag').value=(c.fontes&&c.fontes[0])?c.fontes[0].tag||'':'';
     document.getElementById('fc-equip').value=c.desc||'';
   } else {
     document.getElementById('fc-equip').value='';
@@ -3311,6 +3426,7 @@ function rAdm(){
   ].map(k=>`<div class="kpi" style="--kc:${k.c}">
     <div class="kl">${k.l}</div><div class="kv">${k.v}</div>
     <div class="ks2">${k.s}</div></div>`).join('');
+  rArqLista();
   // Feedbacks
   const filtNota=document.getElementById('adm-filt-nota')?.value||'';
   const lista=fbs.filter(f=>!filtNota||f.nota==filtNota).reverse();
