@@ -2294,16 +2294,22 @@ function rCB(){
 }
 
 function editarCB(){
-  const c = getCB(); if(!c) return;
-  const nome = prompt('Nome do cartão:', c.nome); if(!nome) return;
-  const desc = prompt('Descrição / Equipamento:', c.desc||'');
-  const areas = ['Extração Cavacos','Cozimento','Pré Branqueamento','Depuração','Branqueamento','Laje DDW','Planta Química'];
-  const areaAtual = c.area||'';
-  const areaStr = prompt('Área deste cartão (atual: '+(areaAtual||'todas')+'):\n'+areas.map((a,i)=>(i+1)+'. '+a).join('\n'), areaAtual);
-  if(areaStr===null) return;
-  const area = areas.find(a=>a.toLowerCase().includes(areaStr.toLowerCase().trim()))||areaStr||'';
-  c.nome=nome; c.desc=desc||''; c.area=area;
-  svCB(); rCBTabs(); rCB();
+  const c=getCB();if(!c)return;
+  const nome=prompt('Nome do cartão:',c.nome);if(!nome)return;
+  const desc=prompt('Descrição / Equipamento:',c.desc||'')||'';
+  const areas=['Extração Cavacos','Cozimento','Pré Branqueamento','Depuração','Branqueamento','Laje DDW','Planta Química'];
+  const areaAtual=c.area||'';
+  const areaStr=prompt('Área deste cartão (atual: '+(areaAtual||'nenhuma')+'):\n0. Nenhuma\n'+areas.map((a,i)=>(i+1)+'. '+a).join('\n'),areaAtual);
+  if(areaStr===null)return;
+  const area=areaStr.trim()==='0'||areaStr.trim()===''?'':areas.find(a=>a.toLowerCase().includes(areaStr.toLowerCase().trim()))||areaStr;
+  const linhaAtual=c.linha||'';
+  const linhaStr=prompt('Linha (atual: '+(linhaAtual||'nenhuma')+'):\n0. Nenhuma\n1. L1\n2. L2',linhaAtual);
+  if(linhaStr===null)return;
+  const linhaVal=linhaStr.trim()==='1'||linhaStr.trim().toUpperCase()==='L1'?'L1':
+                 linhaStr.trim()==='2'||linhaStr.trim().toUpperCase()==='L2'?'L2':'';
+  c.nome=nome;c.desc=desc;c.area=area;c.linha=linhaVal;
+  svCB();rCBTabs();rCB();
+  toast('✔ Cartão atualizado: '+nome+(linhaVal?' · '+linhaVal:'')+(area?' · '+area:''));
 }
 
 // Adicionar / editar fonte
@@ -3307,32 +3313,69 @@ function getCBFiltrados(){
   return CB_LIST.filter(c=>c.linha===_cbLinhaFiltro);
 }
 
-// Atualizar rCBTabs para mostrar só os filtrados com grupo visual
-const _rCBTabsOrig = rCBTabs;
-rCBTabs = function(){
+// rCBTabs com agrupamento hierárquico: Linha → Área → Cartões
+rCBTabs=function(){
   const bar=document.getElementById('cb-tabs');if(!bar)return;
   if(!CB_LIST.length){bar.innerHTML='';return;}
+
   const lista=getCBFiltrados();
-  if(!lista.length){bar.innerHTML='<span style="font-size:11px;color:var(--muted)">Nenhum cartão neste filtro</span>';return;}
-  bar.innerHTML=lista.map(c=>{
-    const i=CB_LIST.indexOf(c);
-    const linhaLabel=c.linha?` <span style="font-size:9px;opacity:.7">${c.linha}</span>`:'';
-    return`<button class="cb-tab ${i===CB_IDX?'on':''}" onclick="switchCB(${i})" title="${c.area||'Todas as áreas'}">${c.nome}${linhaLabel}</button>`;
-  }).join('');
+  if(!lista.length){
+    bar.innerHTML='<span style="font-size:11px;color:var(--muted)">Nenhum cartão neste filtro</span>';
+    return;
+  }
+
+  // Agrupar por linha → área
+  const grupos={};
+  lista.forEach(c=>{
+    const linha=c.linha||'—';
+    const area=c.area||'Sem área';
+    if(!grupos[linha]) grupos[linha]={};
+    if(!grupos[linha][area]) grupos[linha][area]=[];
+    grupos[linha][area].push(c);
+  });
+
+  let html='';
+  const linhaOrder=['L1','L2','—'];
+  linhaOrder.forEach(linha=>{
+    if(!grupos[linha])return;
+    const areasObj=grupos[linha];
+    // Só mostrar cabeçalho de linha se tiver mais de um grupo ou se não estiver filtrando
+    if(!_cbLinhaFiltro){
+      html+=`<div style="width:100%;font-family:var(--fh);font-size:10px;font-weight:800;
+        color:var(--sz-aml);letter-spacing:1px;text-transform:uppercase;
+        padding:4px 0 2px;margin-top:4px;border-bottom:1px solid var(--bdr)">
+        ${linha==='—'?'Sem linha':linha}</div>`;
+    }
+    Object.entries(areasObj).forEach(([area,cbs])=>{
+      html+=`<div style="width:100%;display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:4px 0 2px">
+        <span style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;
+          letter-spacing:.5px;white-space:nowrap">📍 ${area}</span>
+        <div style="flex:1;height:1px;background:var(--bdr)"></div>
+      </div>`;
+      cbs.forEach(c=>{
+        const i=CB_LIST.indexOf(c);
+        html+=`<button class="cb-tab ${i===CB_IDX?'on':''}" onclick="switchCB(${i})"
+          title="${c.linha||''} · ${c.area||''}">${c.nome}</button>`;
+      });
+    });
+  });
+
+  bar.innerHTML=html;
 };
 
-// Atualizar novoCB e editarCB para incluir campo linha
-const _novoCBOrig=novoCB;
+// novoCB com regra L1 não tem Laje DDW
 novoCB=function(){
   const nome=prompt('Nome do cartão bloqueador:','CB0'+(CB_LIST.length+1));
   if(!nome)return;
   const desc=prompt('Descrição / Equipamento:','')||'';
-  const areas=['Extração Cavacos','Cozimento','Pré Branqueamento','Depuração','Branqueamento','Laje DDW','Planta Química'];
-  const areaStr=prompt('Área:\n'+areas.map((a,i)=>(i+1)+'. '+a).join('\n'),'')||'';
-  const area=areas.find(a=>a.toLowerCase().includes(areaStr.toLowerCase().trim()))||areaStr||'';
-  const linha=prompt('Linha (L1, L2 ou deixe vazio):','').toUpperCase().trim();
-  const linhaVal=linha==='L1'?'L1':linha==='L2'?'L2':'';
-  CB_LIST.push({id:'cb_'+Date.now(),nome,desc,area,linha:linhaVal,fontes:[]});
+  const linhaStr=prompt('Linha:\n1. L1\n2. L2\n0. Nenhuma','').trim();
+  const linha=linhaStr==='1'?'L1':linhaStr==='2'?'L2':linhaStr.toUpperCase()==='L1'?'L1':linhaStr.toUpperCase()==='L2'?'L2':'';
+  // Áreas disponíveis conforme linha (L1 não tem Laje DDW)
+  const todasAreas=['Extração Cavacos','Cozimento','Pré Branqueamento','Depuração','Branqueamento','Laje DDW','Planta Química'];
+  const areasDisp=linha==='L1'?todasAreas.filter(a=>a!=='Laje DDW'):todasAreas;
+  const areaStr=prompt('Área:\n0. Nenhuma\n'+areasDisp.map((a,i)=>(i+1)+'. '+a).join('\n'),'')||'';
+  const area=areaStr.trim()==='0'||!areaStr.trim()?'':areasDisp.find(a=>a.toLowerCase().includes(areaStr.toLowerCase().trim()))||areaStr;
+  CB_LIST.push({id:'cb_'+Date.now(),nome,desc,area,linha,fontes:[]});
   CB_IDX=CB_LIST.length-1;
   svCB();rCBTabs();rCB();
 };
