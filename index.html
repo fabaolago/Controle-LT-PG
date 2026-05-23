@@ -320,6 +320,21 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
   body{background:#fff}
   td,th{color:#000!important}
 }
+.cb-acord-linha{background:var(--card);border:1px solid var(--bdr);border-radius:6px;margin-bottom:4px;overflow:hidden}
+.cb-acord-linha-hdr{display:flex;align-items:center;gap:8px;padding:8px 12px;cursor:pointer;user-select:none;font-family:var(--fh);font-size:13px;font-weight:800;color:var(--sz-aml);letter-spacing:1px}
+.cb-acord-linha-hdr:hover{background:rgba(255,255,255,.04)}
+.cb-acord-linha-hdr .arrow{font-size:10px;transition:transform .2s;margin-left:auto;color:var(--muted)}
+.cb-acord-linha-hdr.open .arrow{transform:rotate(90deg)}
+.cb-acord-linha-body{display:none;padding:4px 8px 8px}
+.cb-acord-linha-body.open{display:block}
+.cb-acord-area{margin-bottom:6px}
+.cb-acord-area-hdr{display:flex;align-items:center;gap:6px;padding:5px 8px;cursor:pointer;border-radius:4px;user-select:none}
+.cb-acord-area-hdr:hover{background:rgba(255,255,255,.04)}
+.cb-acord-area-name{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.8px;color:var(--muted)}
+.cb-acord-area-hdr .arrow2{font-size:9px;transition:transform .2s;color:var(--faint)}
+.cb-acord-area-hdr.open .arrow2{transform:rotate(90deg)}
+.cb-acord-area-body{display:none;padding:4px 4px 4px 8px;display:flex;gap:4px;flex-wrap:wrap}
+.cb-acord-area-body.open{display:flex}
 /* MODAL */
 .mo{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:500;align-items:center;justify-content:center}
 .mo.on{display:flex}
@@ -682,30 +697,22 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
 
 <!-- CARTÕES BLOQUEADORES -->
 <div id="tab-cb" class="tp">
-  <!-- Barra de navegação entre cartões -->
-  <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px">
-    <div id="cb-tabs" style="display:flex;gap:4px;flex-wrap:wrap;flex:1"></div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap">
-      <button class="btn bp bsm" onclick="novoCB()">+ Novo Cartão</button>
-      <button class="btn bs bsm" onclick="document.getElementById('cb-import-input').click()">📂 Importar Cartões</button>
-      <input type="file" id="cb-import-input" accept=".xlsx,.xls" style="display:none" onchange="importarCBExcel(event)">
-      <button class="btn bs bsm" onclick="document.getElementById('tag-import-input').click()">🏷️ Importar TAGs</button>
-      <input type="file" id="tag-import-input" accept=".xlsx,.xls" style="display:none" onchange="importarTAGs(event)">
-      <span id="tag-count" style="font-size:10px;color:var(--muted);align-self:center"></span>
-    </div>
+  <!-- Barra de ações -->
+  <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+    <button class="btn bp bsm" onclick="novoCB()">+ Novo Cartão</button>
+    <button class="btn bs bsm" onclick="document.getElementById('cb-import-input').click()">📂 Importar Cartões</button>
+    <input type="file" id="cb-import-input" accept=".xlsx,.xls" style="display:none" onchange="importarCBExcel(event)">
+    <button class="btn bs bsm" onclick="document.getElementById('tag-import-input').click()">🏷️ Importar TAGs</button>
+    <input type="file" id="tag-import-input" accept=".xlsx,.xls" style="display:none" onchange="importarTAGs(event)">
+    <span id="tag-count" style="font-size:10px;color:var(--muted)"></span>
   </div>
 
-  <!-- Filtro por linha -->
-  <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap">
-    <button class="btn bs bsm" id="cb-linha-all" onclick="setCBLinha('')" style="background:var(--sz-inov);color:#fff">Todas</button>
-    <button class="btn bs bsm" id="cb-linha-1" onclick="setCBLinha('L1')">Linha 1</button>
-    <button class="btn bs bsm" id="cb-linha-2" onclick="setCBLinha('L2')">Linha 2</button>
-    <button class="btn bs bsm" id="cb-linha-sem" onclick="setCBLinha('sem')">Sem linha</button>
-  </div>
+  <!-- Acordeão de navegação -->
+  <div id="cb-nav" style="margin-bottom:12px"></div>
 
   <!-- Cartão ativo -->
   <div id="cb-content">
-    <div class="es"><div class="ei">🔒</div><p>Nenhum cartão. Clique em "+ Novo Cartão" ou importe do Excel.</p></div>
+    <div class="es"><div class="ei">🔒</div><p>Selecione um cartão na navegação acima.</p></div>
   </div>
 </div>
 
@@ -3307,70 +3314,64 @@ function setCBLinha(linha){
   rCBTabs();rCB();
 }
 
-function getCBFiltrados(){
-  if(!_cbLinhaFiltro) return CB_LIST;
-  if(_cbLinhaFiltro==='sem') return CB_LIST.filter(c=>!c.linha||c.linha==='');
-  return CB_LIST.filter(c=>c.linha===_cbLinhaFiltro);
-}
+function getCBFiltrados(){ return CB_LIST; }
 
-// rCBTabs com agrupamento hierárquico: Linha → Área → Cartões
+const _cbAcordState={linhas:{},areas:{}};
+
 rCBTabs=function(){
-  const bar=document.getElementById('cb-tabs');if(!bar)return;
-  if(!CB_LIST.length){bar.innerHTML='';return;}
-
-  const lista=getCBFiltrados();
-  if(!lista.length){
-    bar.innerHTML='<span style="font-size:11px;color:var(--muted)">Nenhum cartão neste filtro</span>';
-    return;
+  const nav=document.getElementById('cb-nav');if(!nav)return;
+  if(!CB_LIST.length){
+    nav.innerHTML='<div class="es" style="padding:20px"><div class="ei">🔒</div><p>Nenhum cartão.</p></div>';return;
   }
-
-  // Agrupar por linha → área
   const grupos={};
-  lista.forEach(c=>{
-    const linha=c.linha||'—';
-    const area=c.area||'Sem área';
-    if(!grupos[linha]) grupos[linha]={};
-    if(!grupos[linha][area]) grupos[linha][area]=[];
-    grupos[linha][area].push(c);
+  CB_LIST.forEach(c=>{
+    const ln=c.linha||'SEM';const ar=c.area||'Sem área';
+    if(!grupos[ln])grupos[ln]={};
+    if(!grupos[ln][ar])grupos[ln][ar]=[];
+    grupos[ln][ar].push(c);
   });
-
+  const linhaLabel={'L1':'🔵 Linha 1','L2':'🟠 Linha 2','SEM':'📌 Sem linha'};
   let html='';
-  const linhaOrder=['L1','L2','—'];
-  linhaOrder.forEach(linha=>{
-    if(!grupos[linha])return;
-    const areasObj=grupos[linha];
-    // Só mostrar cabeçalho de linha se tiver mais de um grupo ou se não estiver filtrando
-    if(!_cbLinhaFiltro){
-      html+=`<div style="width:100%;font-family:var(--fh);font-size:10px;font-weight:800;
-        color:var(--sz-aml);letter-spacing:1px;text-transform:uppercase;
-        padding:4px 0 2px;margin-top:4px;border-bottom:1px solid var(--bdr)">
-        ${linha==='—'?'Sem linha':linha}</div>`;
-    }
-    Object.entries(areasObj).forEach(([area,cbs])=>{
-      html+=`<div style="width:100%;display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:4px 0 2px">
-        <span style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;
-          letter-spacing:.5px;white-space:nowrap">📍 ${area}</span>
-        <div style="flex:1;height:1px;background:var(--bdr)"></div>
-      </div>`;
+  ['L1','L2','SEM'].forEach(ln=>{
+    if(!grupos[ln])return;
+    const lOpen=_cbAcordState.linhas[ln]!==false;
+    const tot=Object.values(grupos[ln]).flat().length;
+    html+=`<div class="cb-acord-linha">
+      <div class="cb-acord-linha-hdr ${lOpen?'open':''}" onclick="toggleLinha('${ln}')">
+        ${linhaLabel[ln]||ln}
+        <span style="font-size:10px;color:var(--muted);font-family:var(--fn);font-weight:400">${tot} cartão(ões)</span>
+        <span class="arrow">▶</span>
+      </div>
+      <div class="cb-acord-linha-body ${lOpen?'open':''}">`;
+    Object.entries(grupos[ln]).forEach(([ar,cbs])=>{
+      const aKey=ln+'__'+ar;
+      const aOpen=_cbAcordState.areas[aKey]!==false;
+      html+=`<div class="cb-acord-area">
+        <div class="cb-acord-area-hdr ${aOpen?'open':''}" onclick="toggleArea('${aKey}')">
+          <span class="cb-acord-area-name">📍 ${ar}</span>
+          <span class="arrow2">▶</span>
+        </div>
+        <div class="cb-acord-area-body ${aOpen?'open':''}">`;
       cbs.forEach(c=>{
         const i=CB_LIST.indexOf(c);
-        html+=`<button class="cb-tab ${i===CB_IDX?'on':''}" onclick="switchCB(${i})"
-          title="${c.linha||''} · ${c.area||''}">${c.nome}</button>`;
+        html+=`<button class="cb-tab ${i===CB_IDX?'on':''}" onclick="switchCB(${i})">${c.nome}</button>`;
       });
+      html+=`</div></div>`;
     });
+    html+=`</div></div>`;
   });
-
-  bar.innerHTML=html;
+  nav.innerHTML=html;
 };
 
-// novoCB com regra L1 não tem Laje DDW
+function toggleLinha(ln){_cbAcordState.linhas[ln]=_cbAcordState.linhas[ln]===false;rCBTabs();}
+function toggleArea(ak){_cbAcordState.areas[ak]=_cbAcordState.areas[ak]===false;rCBTabs();}
+function setCBLinha(linha){rCBTabs();}
+
 novoCB=function(){
-  const nome=prompt('Nome do cartão bloqueador:','CB0'+(CB_LIST.length+1));
-  if(!nome)return;
+  const nome=prompt('Nome do cartão bloqueador:','CB0'+(CB_LIST.length+1));if(!nome)return;
   const desc=prompt('Descrição / Equipamento:','')||'';
   const linhaStr=prompt('Linha:\n1. L1\n2. L2\n0. Nenhuma','').trim();
-  const linha=linhaStr==='1'?'L1':linhaStr==='2'?'L2':linhaStr.toUpperCase()==='L1'?'L1':linhaStr.toUpperCase()==='L2'?'L2':'';
-  // Áreas disponíveis conforme linha (L1 não tem Laje DDW)
+  const linha=linhaStr==='1'||linhaStr.toUpperCase()==='L1'?'L1':linhaStr==='2'||linhaStr.toUpperCase()==='L2'?'L2':'';
   const todasAreas=['Extração Cavacos','Cozimento','Pré Branqueamento','Depuração','Branqueamento','Laje DDW','Planta Química'];
   const areasDisp=linha==='L1'?todasAreas.filter(a=>a!=='Laje DDW'):todasAreas;
   const areaStr=prompt('Área:\n0. Nenhuma\n'+areasDisp.map((a,i)=>(i+1)+'. '+a).join('\n'),'')||'';
@@ -3379,6 +3380,7 @@ novoCB=function(){
   CB_IDX=CB_LIST.length-1;
   svCB();rCBTabs();rCB();
 };
+
 
 // ═══ ASSINATURA UPLOAD ═════════════════════════════════════════════
 let _assMode='draw';
@@ -3516,34 +3518,64 @@ async function gerarPDFCartaoFisico(){
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:[165,250]});
   fontes.forEach((fonte,idx)=>{
     if(idx>0)doc.addPage([165,250],'portrait');
-    const eqp=(fonte.desc||equip||'').substring(0,40);
+    const eqp=(fonte.desc||equip||'').substring(0,38);
     const tg=(fonte.tag||tag||'').substring(0,12);
-    const ccmV=(fonte.num||ccm||'').substring(0,20);
-    doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(0,0,0);
-    // BRANCA
-    doc.text(eqp,51.2,38.5);
-    doc.text(tg,117.6,38.5);
-    doc.setFont('helvetica','normal');
-    doc.text(resp.substring(0,25),64.1,46.5);
-    doc.text(np.substring(0,8),100.5,46.5);
-    doc.text(fmtData,55.4,57.5);
-    if(ccmV){doc.setFont('helvetica','bold');doc.text(ccmV,30.0,64.5);doc.setFont('helvetica','normal');}
+    const ccmV=(fonte.num||ccm||'').substring(0,22);
+
+    doc.setTextColor(0,0,0);
+
+    // ── BRANCA ──────────────────────────────────────────
+    // Equipamento — fonte menor para não extrapolar
+    doc.setFont('helvetica','bold');doc.setFontSize(7.5);
+    doc.text(eqp, 51.2, 38.5, {maxWidth:60});
+    // TAG
+    doc.setFontSize(7.5);
+    doc.text(tg, 122.0, 38.5);
+    // Operador + NP
+    doc.setFont('helvetica','normal');doc.setFontSize(8);
+    doc.text(resp.substring(0,22), 64.1, 46.5);
+    doc.text(np.substring(0,8),   100.5, 46.5);
+    // Data
+    doc.text(fmtData, 55.4, 57.5);
+    // CCM vertical na lateral esquerda — seção branca (x≈5, y centro da seção)
+    if(ccmV){
+      doc.setFont('helvetica','bold');doc.setFontSize(6.5);
+      doc.saveGraphicsState();
+      doc.text(ccmV, 5, 120, {angle:90});
+      doc.restoreGraphicsState();
+    }
     if(ass)doc.addImage(ass,'PNG',134,43,22,6);
-    // VERDE
-    doc.setFont('helvetica','bold');
-    doc.text(eqp,55.4,167.0);doc.text(tg,117.6,167.0);
-    doc.setFont('helvetica','normal');
-    doc.text(resp.substring(0,25),64.1,175.0);
-    doc.text(np.substring(0,8),117.6,175.0);
-    doc.text(fmtData,40.0,182.5);
-    // VERMELHA
-    doc.setFont('helvetica','bold');
-    doc.text(eqp,55.4,213.0);doc.text(tg,117.6,213.0);
-    doc.setFont('helvetica','normal');
-    doc.text(resp.substring(0,25),69.8,221.0);
-    doc.text(np.substring(0,8),124.6,221.0);
-    doc.text(fmtData,40.5,228.0);
-    if(fmtHora)doc.text(fmtHora,95.0,228.0);
+
+    // ── VERDE ────────────────────────────────────────────
+    doc.setFont('helvetica','bold');doc.setFontSize(7.5);
+    doc.text(eqp, 55.4, 167.0, {maxWidth:60});
+    doc.text(tg, 122.0, 167.0);
+    doc.setFont('helvetica','normal');doc.setFontSize(8);
+    doc.text(resp.substring(0,22), 64.1, 175.0);
+    doc.text(np.substring(0,8),   117.6, 175.0);
+    doc.text(fmtData, 40.0, 182.5);
+    if(ccmV){
+      doc.setFont('helvetica','bold');doc.setFontSize(6.5);
+      doc.saveGraphicsState();
+      doc.text(ccmV, 5, 185, {angle:90});
+      doc.restoreGraphicsState();
+    }
+
+    // ── VERMELHA ─────────────────────────────────────────
+    doc.setFont('helvetica','bold');doc.setFontSize(7.5);
+    doc.text(eqp, 55.4, 213.0, {maxWidth:60});
+    doc.text(tg, 122.0, 213.0);
+    doc.setFont('helvetica','normal');doc.setFontSize(8);
+    doc.text(resp.substring(0,22), 69.8, 221.0);
+    doc.text(np.substring(0,8),   124.6, 221.0);
+    doc.text(fmtData, 40.5, 228.0);
+    if(fmtHora)doc.text(fmtHora, 95.0, 228.0);
+    if(ccmV){
+      doc.setFont('helvetica','bold');doc.setFontSize(6.5);
+      doc.saveGraphicsState();
+      doc.text(ccmV, 5, 248, {angle:90});
+      doc.restoreGraphicsState();
+    }
     if(ass)doc.addImage(ass,'PNG',134,225,22,6);
   });
   document.getElementById('mform-cartao').classList.remove('on');
