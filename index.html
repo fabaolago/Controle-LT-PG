@@ -3407,23 +3407,9 @@ function onAssUpload(e){
   r.readAsDataURL(file);
 }
 
-// Override getAssinaturaDataURL para suportar upload
-const _getAssOrig=getAssinaturaDataURL;
-getAssinaturaDataURL=function(){
-  if(_assMode==='upload') return _assUploadDataURL||null;
-  return _getAssOrig();
-};
 
-// Override limparAssinatura
-const _limparAssOrig=limparAssinatura;
-limparAssinatura=function(){
-  _limparAssOrig();
-  _assUploadDataURL=null;
-  const prev=document.getElementById('fc-ass-preview');
-  if(prev){prev.src='';prev.style.display='none';}
-  const inp=document.getElementById('fc-ass-file');
-  if(inp)inp.value='';
-};
+
+
 
 
 let _fcCanvas=null,_fcCtx=null,_fcDrawing=false,_fcLastX=0,_fcLastY=0;
@@ -3486,11 +3472,16 @@ function iniciarCanvas(){
 }
 
 function limparAssinatura(){
-  if(!_fcCtx||!_fcCanvas)return;
-  _fcCtx.clearRect(0,0,_fcCanvas.width,_fcCanvas.height);
+  if(_fcCtx&&_fcCanvas) _fcCtx.clearRect(0,0,_fcCanvas.width,_fcCanvas.height);
+  if(typeof _assUploadDataURL!=='undefined') _assUploadDataURL=null;
+  const prev=document.getElementById('fc-ass-preview');
+  if(prev){prev.src='';prev.style.display='none';}
+  const inp=document.getElementById('fc-ass-file');
+  if(inp)inp.value='';
 }
 
 function getAssinaturaDataURL(){
+  if(typeof _assMode!=='undefined'&&_assMode==='upload') return _assUploadDataURL||null;
   if(!_fcCanvas)return null;
   const d=_fcCtx.getImageData(0,0,_fcCanvas.width,_fcCanvas.height).data;
   return d.some((v,i)=>i%4===3&&v>0)?_fcCanvas.toDataURL('image/png'):null;
@@ -3521,78 +3512,61 @@ async function gerarPDFCartaoFisico(){
     const eqp=(fonte.desc||equip||'').toUpperCase().substring(0,40);
     const tg=(fonte.tag||tag||'').toUpperCase().substring(0,12);
     const ccmV=(fonte.num||ccm||'').toUpperCase().substring(0,22);
-
     doc.setTextColor(0,0,0);
 
-    // ── SEÇÃO BRANCA ─────────────────────────────────────────
-    // Equipamento: C1 → x=47.5, y=44.3
+    // ── BRANCA ──────────────────────────────────────────────
     doc.setFont('helvetica','bold');doc.setFontSize(8);
-    doc.text(eqp, 47.5, 44.3, {maxWidth:68});
-    // TAG: M1 → x=119.5, y=44.3
-    doc.text(tg, 119.5, 44.3);
-    // Operador: F2 → x=61.5, y=50.6
+    doc.text(eqp, 55.5, 44.3, {maxWidth:60});
+    doc.text(tg,  127.5, 44.3);
     doc.setFont('helvetica','normal');doc.setFontSize(8.5);
-    doc.text(resp.substring(0,22), 61.5, 50.6);
-    // NP: K2 → x=100.9, y=50.6
-    doc.text(np.substring(0,8), 100.9, 50.6);
-    // Data: E4 → x=52.0, y=62.8  (dd/mm/aaaa separado nos campos)
+    doc.text(resp.substring(0,20), 69.5, 50.6);
+    doc.text(np.substring(0,8), 108.9, 50.6);
     if(fmtData){
       const dp=fmtData.split('/');
-      doc.text(dp[0]||'', 52.0, 62.8);
-      doc.text(dp[1]||'', 63.0, 62.8);
-      doc.text(dp[2]||'', 74.0, 62.8);
+      doc.text(dp[0]||'', 38.5, 63.0);
+      doc.text(dp[1]||'', 49.5, 63.0);
+      doc.text(dp[2]||'', 61.0, 63.0);
     }
-    // CCM vertical: A6 → x=24.5, y=141.0 — lateral esq seção branca
     if(ccmV){
       doc.setFont('helvetica','bold');doc.setFontSize(6.5);
       doc.saveGraphicsState();
-      doc.text(ccmV, 24.5, 141.0, {angle:90});
+      doc.text(ccmV, 24.5, 100.0, {angle:90});
       doc.restoreGraphicsState();
     }
-    if(ass)doc.addImage(ass,'PNG',134,47,22,5);
+    if(ass)doc.addImage(ass,'PNG',140,47,20,5);
 
-    // ── SEÇÃO VERDE ──────────────────────────────────────────
-    // Equipamento: E8 → x=52.0, y=158.4
+    // ── VERDE ────────────────────────────────────────────────
     doc.setFont('helvetica','bold');doc.setFontSize(8);
-    doc.text(eqp, 52.0, 158.4, {maxWidth:65});
-    // TAG: M8 → x=119.5, y=158.4
-    doc.text(tg, 119.5, 158.4);
-    // CCM vertical: A12 → x=24.5, y=198.1 — lateral esq seção verde
+    doc.text(eqp, 55.5, 158.4, {maxWidth:60});
+    doc.text(tg,  102.5, 158.4);
     if(ccmV){
       doc.setFont('helvetica','bold');doc.setFontSize(6.5);
       doc.saveGraphicsState();
-      doc.text(ccmV, 24.5, 198.1, {angle:90});
+      doc.text(ccmV, 24.5, 175.0, {angle:90});
       doc.restoreGraphicsState();
     }
 
-    // ── SEÇÃO VERMELHA ───────────────────────────────────────
-    // Equipamento: E13 → x=52.0, y=211.0
+    // ── VERMELHA ─────────────────────────────────────────────
     doc.setFont('helvetica','bold');doc.setFontSize(8);
-    doc.text(eqp, 52.0, 211.0, {maxWidth:65});
-    // TAG: M13 → x=119.5, y=211.0
-    doc.text(tg, 119.5, 211.0);
-    // Operador: G14 → x=67.6, y=218.2
+    doc.text(eqp, 55.5, 211.5, {maxWidth:60});
+    doc.text(tg,  102.5, 211.5);
     doc.setFont('helvetica','normal');doc.setFontSize(8.5);
-    doc.text(resp.substring(0,22), 67.6, 218.2);
-    // NP: N14 → x=127.1, y=218.2
-    doc.text(np.substring(0,8), 127.1, 218.2);
-    // Data: B15 → x=35.9, y=224.0
+    doc.text(resp.substring(0,20), 69.5, 218.5);
+    doc.text(np.substring(0,8), 134.0, 218.5);
     if(fmtData){
       const dp=fmtData.split('/');
-      doc.text(dp[0]||'', 35.9, 224.0);
-      doc.text(dp[1]||'', 46.5, 224.0);
-      doc.text(dp[2]||'', 57.5, 224.0);
+      doc.text(dp[0]||'', 22.0, 224.5);
+      doc.text(dp[1]||'', 32.5, 224.5);
+      doc.text(dp[2]||'', 44.0, 224.5);
     }
-    // Hora (após data, campo separado)
-    if(fmtHora) doc.text(fmtHora, 97.0, 224.0);
-    // CCM vertical seção vermelha
+    if(fmtHora) doc.text(fmtHora, 97.0, 224.5);
     if(ccmV){
       doc.setFont('helvetica','bold');doc.setFontSize(6.5);
       doc.saveGraphicsState();
-      doc.text(ccmV, 24.5, 246.0, {angle:90});
+      doc.text(ccmV, 24.5, 230.0, {angle:90});
       doc.restoreGraphicsState();
     }
-    if(ass)doc.addImage(ass,'PNG',134,215,22,5);
+    if(ass)doc.addImage(ass,'PNG',140,215,20,5);
   });
   document.getElementById('mform-cartao').classList.remove('on');
   toast('🖨️ '+fontes.length+' cartão(ões) — abrindo impressão...');
