@@ -3518,65 +3518,81 @@ async function gerarPDFCartaoFisico(){
   const doc=new jsPDF({orientation:'portrait',unit:'mm',format:[165,250]});
   fontes.forEach((fonte,idx)=>{
     if(idx>0)doc.addPage([165,250],'portrait');
-    const eqp=(fonte.desc||equip||'').substring(0,38);
-    const tg=(fonte.tag||tag||'').substring(0,12);
-    const ccmV=(fonte.num||ccm||'').substring(0,22);
+    const eqp=(fonte.desc||equip||'').toUpperCase().substring(0,40);
+    const tg=(fonte.tag||tag||'').toUpperCase().substring(0,12);
+    const ccmV=(fonte.num||ccm||'').toUpperCase().substring(0,22);
 
     doc.setTextColor(0,0,0);
 
-    // ── BRANCA ──────────────────────────────────────────
-    // Equipamento — fonte menor para não extrapolar
-    doc.setFont('helvetica','bold');doc.setFontSize(7.5);
-    doc.text(eqp, 51.2, 38.5, {maxWidth:60});
-    // TAG
-    doc.setFontSize(7.5);
-    doc.text(tg, 122.0, 38.5);
-    // Operador + NP
-    doc.setFont('helvetica','normal');doc.setFontSize(8);
-    doc.text(resp.substring(0,22), 64.1, 46.5);
-    doc.text(np.substring(0,8),   100.5, 46.5);
-    // Data
-    doc.text(fmtData, 55.4, 57.5);
-    // CCM vertical na lateral esquerda — seção branca (x≈5, y centro da seção)
+    // ── SEÇÃO BRANCA ─────────────────────────────────────────
+    // Equipamento: C1 → x=47.5, y=44.3
+    doc.setFont('helvetica','bold');doc.setFontSize(8);
+    doc.text(eqp, 47.5, 44.3, {maxWidth:68});
+    // TAG: M1 → x=119.5, y=44.3
+    doc.text(tg, 119.5, 44.3);
+    // Operador: F2 → x=61.5, y=50.6
+    doc.setFont('helvetica','normal');doc.setFontSize(8.5);
+    doc.text(resp.substring(0,22), 61.5, 50.6);
+    // NP: K2 → x=100.9, y=50.6
+    doc.text(np.substring(0,8), 100.9, 50.6);
+    // Data: E4 → x=52.0, y=62.8  (dd/mm/aaaa separado nos campos)
+    if(fmtData){
+      const dp=fmtData.split('/');
+      doc.text(dp[0]||'', 52.0, 62.8);
+      doc.text(dp[1]||'', 63.0, 62.8);
+      doc.text(dp[2]||'', 74.0, 62.8);
+    }
+    // CCM vertical: A6 → x=24.5, y=141.0 — lateral esq seção branca
     if(ccmV){
       doc.setFont('helvetica','bold');doc.setFontSize(6.5);
       doc.saveGraphicsState();
-      doc.text(ccmV, 5, 120, {angle:90});
+      doc.text(ccmV, 24.5, 141.0, {angle:90});
       doc.restoreGraphicsState();
     }
-    if(ass)doc.addImage(ass,'PNG',134,43,22,6);
+    if(ass)doc.addImage(ass,'PNG',134,47,22,5);
 
-    // ── VERDE ────────────────────────────────────────────
-    doc.setFont('helvetica','bold');doc.setFontSize(7.5);
-    doc.text(eqp, 55.4, 167.0, {maxWidth:60});
-    doc.text(tg, 122.0, 167.0);
-    doc.setFont('helvetica','normal');doc.setFontSize(8);
-    doc.text(resp.substring(0,22), 64.1, 175.0);
-    doc.text(np.substring(0,8),   117.6, 175.0);
-    doc.text(fmtData, 40.0, 182.5);
+    // ── SEÇÃO VERDE ──────────────────────────────────────────
+    // Equipamento: E8 → x=52.0, y=158.4
+    doc.setFont('helvetica','bold');doc.setFontSize(8);
+    doc.text(eqp, 52.0, 158.4, {maxWidth:65});
+    // TAG: M8 → x=119.5, y=158.4
+    doc.text(tg, 119.5, 158.4);
+    // CCM vertical: A12 → x=24.5, y=198.1 — lateral esq seção verde
     if(ccmV){
       doc.setFont('helvetica','bold');doc.setFontSize(6.5);
       doc.saveGraphicsState();
-      doc.text(ccmV, 5, 185, {angle:90});
+      doc.text(ccmV, 24.5, 198.1, {angle:90});
       doc.restoreGraphicsState();
     }
 
-    // ── VERMELHA ─────────────────────────────────────────
-    doc.setFont('helvetica','bold');doc.setFontSize(7.5);
-    doc.text(eqp, 55.4, 213.0, {maxWidth:60});
-    doc.text(tg, 122.0, 213.0);
-    doc.setFont('helvetica','normal');doc.setFontSize(8);
-    doc.text(resp.substring(0,22), 69.8, 221.0);
-    doc.text(np.substring(0,8),   124.6, 221.0);
-    doc.text(fmtData, 40.5, 228.0);
-    if(fmtHora)doc.text(fmtHora, 95.0, 228.0);
+    // ── SEÇÃO VERMELHA ───────────────────────────────────────
+    // Equipamento: E13 → x=52.0, y=211.0
+    doc.setFont('helvetica','bold');doc.setFontSize(8);
+    doc.text(eqp, 52.0, 211.0, {maxWidth:65});
+    // TAG: M13 → x=119.5, y=211.0
+    doc.text(tg, 119.5, 211.0);
+    // Operador: G14 → x=67.6, y=218.2
+    doc.setFont('helvetica','normal');doc.setFontSize(8.5);
+    doc.text(resp.substring(0,22), 67.6, 218.2);
+    // NP: N14 → x=127.1, y=218.2
+    doc.text(np.substring(0,8), 127.1, 218.2);
+    // Data: B15 → x=35.9, y=224.0
+    if(fmtData){
+      const dp=fmtData.split('/');
+      doc.text(dp[0]||'', 35.9, 224.0);
+      doc.text(dp[1]||'', 46.5, 224.0);
+      doc.text(dp[2]||'', 57.5, 224.0);
+    }
+    // Hora (após data, campo separado)
+    if(fmtHora) doc.text(fmtHora, 97.0, 224.0);
+    // CCM vertical seção vermelha
     if(ccmV){
       doc.setFont('helvetica','bold');doc.setFontSize(6.5);
       doc.saveGraphicsState();
-      doc.text(ccmV, 5, 248, {angle:90});
+      doc.text(ccmV, 24.5, 246.0, {angle:90});
       doc.restoreGraphicsState();
     }
-    if(ass)doc.addImage(ass,'PNG',134,225,22,6);
+    if(ass)doc.addImage(ass,'PNG',134,215,22,5);
   });
   document.getElementById('mform-cartao').classList.remove('on');
   toast('🖨️ '+fontes.length+' cartão(ões) — abrindo impressão...');
