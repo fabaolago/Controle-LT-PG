@@ -3516,16 +3516,16 @@ async function gerarPDFCartaoFisico(){
 
     // ── BRANCA ──────────────────────────────────────────────
     doc.setFont('helvetica','bold');doc.setFontSize(8);
-    doc.text(eqp, 55.5, 44.3, {maxWidth:60});
-    doc.text(tg,  127.5, 44.3);
+    doc.text(eqp, 56.5, 45.3, {maxWidth:60});
+    doc.text(tg,  128.5, 44.3);
     doc.setFont('helvetica','normal');doc.setFontSize(8.5);
-    doc.text(resp.substring(0,20), 69.5, 50.6);
-    doc.text(np.substring(0,8), 108.9, 50.6);
+    doc.text(resp.substring(0,20), 69.5, 50.0);
+    doc.text(np.substring(0,8), 109.9, 50.6);
     if(fmtData){
       const dp=fmtData.split('/');
-      doc.text(dp[0]||'', 38.5, 63.0);
-      doc.text(dp[1]||'', 49.5, 63.0);
-      doc.text(dp[2]||'', 61.0, 63.0);
+      doc.text(dp[0]||'', 40.5, 63.0);
+      doc.text(dp[1]||'', 51.5, 63.0);
+      doc.text(dp[2]||'', 63.0, 63.0);
     }
     if(ccmV){
       doc.setFont('helvetica','bold');doc.setFontSize(6.5);
