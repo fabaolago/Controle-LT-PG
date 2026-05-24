@@ -2384,6 +2384,14 @@ function importarCBExcel(e){
     try{
       const wb = XLSX.read(new Uint8Array(ev.target.result), {type:'array', raw:true});
       let importados = 0;
+      // Perguntar linha e área UMA VEZ para todo o arquivo importado
+      const todasAreas=['Extração Cavacos','Cozimento','Pré Branqueamento','Depuração','Branqueamento','Laje DDW','Planta Química'];
+      const impLinhaStr=prompt('Qual LINHA para os cartões deste arquivo?\n1. L1\n2. L2\n0. Nenhuma','').trim();
+      const impLinha=impLinhaStr==='1'||impLinhaStr.toUpperCase()==='L1'?'L1':impLinhaStr==='2'||impLinhaStr.toUpperCase()==='L2'?'L2':'';
+      const impAreasDisp=impLinha==='L1'?todasAreas.filter(a=>a!=='Laje DDW'):todasAreas;
+      const impAreaStr=prompt('Qual ÁREA para os cartões deste arquivo?\n0. Nenhuma\n'+impAreasDisp.map((a,i)=>(i+1)+'. '+a).join('\n'),'').trim();
+      const impArea=impAreaStr==='0'||!impAreaStr?'':impAreasDisp.find(a=>a.toLowerCase().includes(impAreaStr.toLowerCase()))||impAreaStr;
+
       wb.SheetNames.forEach(shName=>{
         // Só processar abas que parecem cartões (nome contém CB ou CARTÃO)
         if(!shName.toUpperCase().includes('CB') && !shName.toUpperCase().includes('CART')) return;
@@ -2433,45 +2441,30 @@ function importarCBExcel(e){
           if(tag || desc) fontes.push({tag: tag.toUpperCase(), desc: desc.toUpperCase(), num});
         }
         if(!fontes.length) return;
-        // Verificar se já existe cartão com esse nome
-        const existente = CB_LIST.find(c=>c.nome.toUpperCase()===cbNome.toUpperCase());
+        // Verificar se já existe cartão com mesmo nome NA MESMA LINHA+ÁREA
+        // CB01 da Laje DDW ≠ CB01 do Cozimento — nunca devem se misturar
+        const existente=CB_LIST.find(c=>
+          c.nome.toUpperCase()===cbNome.toUpperCase()&&
+          (c.linha||'')===(impLinha)&&
+          (c.area||'')===(impArea)
+        );
         if(existente){
-          // Não sobrescrever — perguntar o que fazer
           const opcao=confirm(
-            'Cartão "'+cbNome+'" já existe.\n\n'+
-            'OK = Atualizar fontes de energia do existente\n'+
-            'Cancelar = Criar como novo cartão'
+            'Cartão "'+cbNome+'" já existe em '+( impLinha||'sem linha')+' / '+(impArea||'sem área')+'\n\n'+
+            'OK = Atualizar fontes de energia\n'+
+            'Cancelar = Ignorar este cartão'
           );
-          if(opcao){
-            existente.fontes=fontes;existente.desc=cbDesc;
-          } else {
-            // Criar novo — pedir linha e área
-            _importCBPendente=_importCBPendente||[];
-            _importCBPendente.push({nome:cbNome,desc:cbDesc,fontes});
-          }
+          if(opcao){existente.fontes=fontes;existente.desc=cbDesc;}
         } else {
-          _importCBPendente=_importCBPendente||[];
-          _importCBPendente.push({nome:cbNome,desc:cbDesc,fontes});
+          CB_LIST.push({id:'cb_'+Date.now()+'_'+importados,nome:cbNome,desc:cbDesc,
+            area:impArea,linha:impLinha,fontes});
         }
         importados++;
       });
       if(!importados){ toast('⚠️ Nenhum cartão encontrado no arquivo','err'); return; }
-      // Processar pendentes (novos ou duplicados escolhidos como novo)
-      if(window._importCBPendente&&_importCBPendente.length){
-        _importCBPendente.forEach(cb=>{
-          const areas=['Extração Cavacos','Cozimento','Pré Branqueamento','Depuração','Branqueamento','Laje DDW','Planta Química'];
-          const linhaStr=prompt('Cartão "'+cb.nome+'" ('+cb.desc+')\nLinha:\n1. L1\n2. L2\n0. Nenhuma','').trim();
-          const linha=linhaStr==='1'||linhaStr.toUpperCase()==='L1'?'L1':linhaStr==='2'||linhaStr.toUpperCase()==='L2'?'L2':'';
-          const areasDisp=linha==='L1'?areas.filter(a=>a!=='Laje DDW'):areas;
-          const areaStr=prompt('Área de "'+cb.nome+'":\n0. Nenhuma\n'+areasDisp.map((a,i)=>(i+1)+'. '+a).join('\n'),'').trim();
-          const area=areaStr==='0'||!areaStr?'':areasDisp.find(a=>a.toLowerCase().includes(areaStr.toLowerCase()))||areaStr;
-          CB_LIST.push({id:'cb_'+Date.now()+'_'+Math.random().toString(36).slice(2,6),nome:cb.nome,desc:cb.desc,area,linha,fontes:cb.fontes});
-        });
-        window._importCBPendente=[];
-      }
       CB_IDX=Math.max(0,CB_LIST.length-1);
       svCB(); rCBTabs(); rCB();
-      toast('✔ '+importados+' cartão(ões) importado(s)!');
+      toast('✔ '+importados+' cartão(ões) → '+(impLinha||'sem linha')+' / '+(impArea||'sem área'));
     }catch(err){ console.error(err); toast('⚠️ Erro: '+err.message,'err'); }
   };
   r.readAsArrayBuffer(file);
@@ -3537,8 +3530,14 @@ async function gerarPDFCartaoFisico(){
     if(idx>0)doc.addPage([165,250],'portrait');
     const eqp=(fonte.desc||equip||'').toUpperCase().substring(0,40);
     const tg=(fonte.tag||tag||'').toUpperCase().substring(0,12);
-    // CCM: campo manual tem prioridade; fonte.num é o nº do cadeado (diferente)
-    const ccmV=(ccm||'').toUpperCase().substring(0,22);
+    // CCM: campo manual > ccm da tabela de TAGs vinculado ao tag da fonte > vazio
+    // fonte.num é nº do cadeado, não o CCM
+    let ccmV=(ccm||'').toUpperCase();
+    if(!ccmV&&fonte.tag){
+      const tagRec=TAG_TABLE.find(t=>t.tag===fonte.tag.toUpperCase());
+      if(tagRec&&tagRec.ccm) ccmV=tagRec.ccm.toUpperCase();
+    }
+    ccmV=ccmV.substring(0,22);
     doc.setTextColor(0,0,0);
 
     // ── BRANCA ──────────────────────────────────────────────
