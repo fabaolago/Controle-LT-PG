@@ -3555,11 +3555,11 @@ async function gerarPDFCartaoFisico(){
     doc.text(np.substring(0,8), 144.0, 213.5);
     if(fmtData){
       const dp=fmtData.split('/');
-      doc.text(dp[0]||'', 52.0, 232.5);
-      doc.text(dp[1]||'', 62.5, 232.5);
-      doc.text(dp[2]||'', 74.0, 232.5);
+      doc.text(dp[0]||'', 52.0, 222.5);
+      doc.text(dp[1]||'', 65.5, 222.5);
+      doc.text(dp[2]||'', 77.0, 222.5);
     }
-    if(fmtHora) doc.text(fmtHora, 97.0, 229.5);
+    if(fmtHora) doc.text(fmtHora, 97.0, 222.5);
     if(ccmV){
       doc.setFont('helvetica','bold');doc.setFontSize(6.5);
       doc.saveGraphicsState();
