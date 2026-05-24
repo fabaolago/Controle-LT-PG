@@ -3566,7 +3566,7 @@ async function gerarPDFCartaoFisico(){
       doc.text(ccmV, 24.5, 230.0, {angle:90});
       doc.restoreGraphicsState();
     }
-    if(ass)doc.addImage(ass,'PNG',140,219,22,5);
+    if(ass)doc.addImage(ass,'PNG',140,219.5,20,5);
   });
   document.getElementById('mform-cartao').classList.remove('on');
   toast('🖨️ '+fontes.length+' cartão(ões) — abrindo impressão...');
