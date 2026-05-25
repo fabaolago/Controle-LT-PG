@@ -1087,7 +1087,7 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
         <div style="display:flex;gap:6px;margin-bottom:4px">
           <button class="btn bs bsm" onclick="setAssMode('draw')" id="ass-btn-draw">✏️ Desenhar</button>
           <button class="btn bs bsm" onclick="setAssMode('upload')" id="ass-btn-upload">📎 Anexar imagem</button>
-          <button class="btn bs bsm" onclick="limparAssinatura()">✕ Limpar</button>
+          <button class="btn bs bsm" onclick="limparAssinaturaESalvo()">✕ Limpar</button>
         </div>
         <!-- Canvas desenho -->
         <div id="ass-draw-area" style="position:relative;border:1px solid var(--bdr);border-radius:5px;background:#fff;overflow:hidden">
@@ -3353,13 +3353,57 @@ function updTagCount(){
 
 function onTagInput(val){
   const v=val.trim().toUpperCase();
-  if(!v) return;
-  const found=TAG_TABLE.find(t=>t.tag===v||t.tag.startsWith(v));
+  const ccmEl=document.getElementById('fc-ccm');
+  if(!v){
+    document.getElementById('fc-equip').value='';
+    if(ccmEl)ccmEl.value='';
+    return;
+  }
+  const found=TAG_TABLE.find(t=>t.tag===v);
   if(found){
     document.getElementById('fc-equip').value=found.desc||'';
-    const ccmEl=document.getElementById('fc-ccm');
-    if(ccmEl&&found.ccm) ccmEl.value=found.ccm;
+    if(ccmEl)ccmEl.value=found.ccm||'';
   }
+}
+
+// ═══ SALVAR / RESTAURAR ASSINATURA ═════════════════════════════════
+const ASS_KEY='lt_cart_assinatura';
+
+function salvarAssinaturaPersistente(){
+  const dataURL=getAssinaturaDataURL();
+  if(dataURL){
+    try{localStorage.setItem(ASS_KEY,dataURL);}
+    catch(e){console.error('Assinatura muito grande para localStorage');}
+  }
+}
+
+function restaurarAssinatura(){
+  const saved=localStorage.getItem(ASS_KEY);
+  if(!saved)return;
+  if(_assMode==='upload'){
+    _assUploadDataURL=saved;
+    const prev=document.getElementById('fc-ass-preview');
+    if(prev){prev.src=saved;prev.style.display='block';}
+  } else {
+    // Restaurar no canvas
+    const img=new Image();
+    img.onload=()=>{
+      if(_fcCtx&&_fcCanvas){
+        _fcCtx.clearRect(0,0,_fcCanvas.width,_fcCanvas.height);
+        // Escalar para o canvas
+        const scale=Math.min(_fcCanvas.width/img.width,_fcCanvas.height/img.height);
+        const w=img.width*scale, h=img.height*scale;
+        _fcCtx.drawImage(img,(_fcCanvas.width-w)/2,(_fcCanvas.height-h)/2,w,h);
+      }
+    };
+    img.src=saved;
+  }
+}
+
+function limparAssinaturaESalvo(){
+  limparAssinatura();
+  localStorage.removeItem(ASS_KEY);
+  toast('✔ Assinatura limpa!');
 }
 
 // ═══ LINHA 1 / LINHA 2 ═════════════════════════════════════════════
@@ -3633,7 +3677,7 @@ function abrirFormCartao(){
     sel.appendChild(o);
   });
   document.getElementById('mform-cartao').classList.add('on');
-  setTimeout(()=>{iniciarCanvas();limparAssinatura();setupRespAutocomplete();},150);
+  setTimeout(()=>{iniciarCanvas();limparAssinatura();restaurarAssinatura();setupRespAutocomplete();},150);
 }
 
 function autoPreencherCartao(){
@@ -3771,8 +3815,9 @@ async function gerarPDFCartaoFisico(){
     }
     if(ass)doc.addImage(ass,'PNG',140,216.5,20,5);
   });
-  // Salvar responsável para autocomplete futuro
+  // Salvar responsável e assinatura para uso futuro
   saveResp(resp, np);
+  salvarAssinaturaPersistente();
 
   document.getElementById('mform-cartao').classList.remove('on');
   toast('🖨️ '+fontes.length+' cartão(ões) — abrindo impressão...');
