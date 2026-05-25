@@ -430,16 +430,23 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
       <div class="fi"><label>Nº do Cadeado</label><input id="fcadeado" placeholder="045"></div>
       <div class="fi"><label>Centro de Trabalho</label><input id="fctrab" placeholder="Ex: MEC-01, ELE-02..." oninput="autoDiscFromCtrab()"></div>
       <div class="fi"><label>Área *</label>
-        <select id="farea">
-          <option value="">— Selecione a Área —</option>
-          <option value="Extração Cavacos">Extração Cavacos</option>
-          <option value="Cozimento">Cozimento</option>
-          <option value="Pré Branqueamento">Pré Branqueamento</option>
-          <option value="Depuração">Depuração</option>
-          <option value="Branqueamento">Branqueamento</option>
-          <option value="Laje DDW">Laje DDW</option>
-          <option value="Planta Química">Planta Química</option>
-        </select>
+        <div style="display:flex;gap:6px;align-items:center">
+          <select id="flinha-lt" onchange="updAreaOpts()" style="width:80px;flex-shrink:0">
+            <option value="">Linha</option>
+            <option value="L1">L1</option>
+            <option value="L2">L2</option>
+          </select>
+          <select id="farea" style="flex:1">
+            <option value="">— Selecione a Área —</option>
+            <option value="Extração Cavacos">Extração Cavacos</option>
+            <option value="Cozimento">Cozimento</option>
+            <option value="Pré Branqueamento">Pré Branqueamento</option>
+            <option value="Depuração">Depuração</option>
+            <option value="Branqueamento">Branqueamento</option>
+            <option value="Laje DDW">Laje DDW</option>
+            <option value="Planta Química">Planta Química</option>
+          </select>
+        </div>
       </div>
       <div class="fi"><label>Disciplina *</label><select id="fdisc"><option value="">— Selecione —</option></select></div>
       <div class="fi"><label>Prioridade</label>
@@ -765,6 +772,18 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
       </div>
       <div id="adm-arq-lista"></div>
     </div>
+    <!-- TAGs -->
+    <div class="st" style="margin-top:20px">🏷️ Tabela de TAGs</div>
+    <div style="background:var(--card);border:1px solid var(--bdr);border-radius:6px;padding:12px;margin-bottom:10px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+        <button class="btn bp bsm" onclick="abrirModalNovoTag()">+ Novo TAG</button>
+        <button class="btn bs bsm" onclick="document.getElementById('tag-import-adm').click()">📂 Importar Excel</button>
+        <input type="file" id="tag-import-adm" accept=".xlsx,.xls" style="display:none" onchange="importarTAGs(event);rAdm()">
+        <input id="adm-tag-busca" placeholder="Buscar TAG..." oninput="rTagLista()" style="max-width:160px;font-size:12px">
+        <span id="adm-tag-count" style="font-size:11px;color:var(--muted);align-self:center"></span>
+      </div>
+      <div id="adm-tag-lista" style="max-height:280px;overflow-y:auto"></div>
+    </div>
     <!-- Feedbacks -->
     <div class="st">💬 Feedbacks e Sugestões</div>
     <div class="flt" style="margin-bottom:10px">
@@ -1087,6 +1106,22 @@ td{padding:7px 10px;font-size:12px;color:#dceaf8;vertical-align:middle}
     <div class="fa" style="margin-top:12px">
       <button class="btn bp" onclick="gerarPDFCartaoFisico()">🖨️ Imprimir Cartão</button>
       <button class="btn bs" onclick="document.getElementById('mform-cartao').classList.remove('on')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NOVO TAG -->
+<div class="mo" id="modal-tag" onclick="closeMo(event,'modal-tag')">
+  <div class="md" style="max-width:380px">
+    <h3 id="modal-tag-title">➕ Novo TAG</h3>
+    <div style="display:grid;gap:9px">
+      <div class="fi"><label>TAG</label><input id="mt-tag" placeholder="Ex: 322UH201"></div>
+      <div class="fi"><label>Descrição</label><input id="mt-desc" placeholder="Ex: VMB ENTRADA ÓLEO UH201"></div>
+      <div class="fi"><label>CCM</label><input id="mt-ccm" placeholder="Ex: BT-CCM-1.8.2C2T4"></div>
+    </div>
+    <div class="fa" style="margin-top:12px">
+      <button class="btn bp" onclick="salvarTag()">💾 Salvar</button>
+      <button class="btn bs" onclick="document.getElementById('modal-tag').classList.remove('on')">Cancelar</button>
     </div>
   </div>
 </div>
@@ -2649,16 +2684,29 @@ async function compartilharCBPDF(linha1Param,linha2Param,cbNumParam,minRowsParam
 
   const fname='CartaoBloqueador_'+cbNum+'_'+new Date().toISOString().slice(0,10)+'.pdf';
   try{
-    if(navigator.share&&navigator.canShare){
-      const blob=doc.output('blob');
-      const file=new File([blob],fname,{type:'application/pdf'});
-      if(navigator.canShare({files:[file]})){
-        await navigator.share({files:[file],title:'Cartão Bloqueador '+cbNum});
-        toast('✔ PDF compartilhado!');return;
+    const blob=doc.output('blob');
+    const url=URL.createObjectURL(blob);
+    // Impressão direta via iframe (igual ao cartão físico)
+    let ifr=document.getElementById('print-iframe-cb');
+    if(ifr)ifr.remove();
+    ifr=document.createElement('iframe');
+    ifr.id='print-iframe-cb';
+    ifr.style.cssText='position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:none';
+    ifr.src=url;
+    document.body.appendChild(ifr);
+    ifr.onload=()=>{
+      try{ifr.contentWindow.focus();ifr.contentWindow.print();}
+      catch(e){
+        // Fallback: compartilhar ou salvar
+        if(navigator.share&&navigator.canShare){
+          const file=new File([blob],fname,{type:'application/pdf'});
+          if(navigator.canShare({files:[file]})){navigator.share({files:[file],title:'Cartão Bloqueador '+cbNum});return;}
+        }
+        doc.save(fname);
       }
-    }
-    doc.save(fname);
-    toast('✔ PDF salvo! Pg.1=Fontes  Pg.2=Atividades'+(extraPages>0?'  +'+extraPages+' extra(s)':''));
+      setTimeout(()=>URL.revokeObjectURL(url),60000);
+    };
+    toast('🖨️ Abrindo impressão...');
   }catch(err){if(err.name!=='AbortError')toast('⚠️ Erro: '+err.message,'err');}
 }
 
@@ -3431,7 +3479,136 @@ function onAssUpload(e){
 
 
 
-let _fcCanvas=null,_fcCtx=null,_fcDrawing=false,_fcLastX=0,_fcLastY=0;
+// ═══ TAGS FIREBASE SYNC ════════════════════════════════════════════
+function saveTAGTableFB(){
+  localStorage.setItem('lt_tag_table',JSON.stringify(TAG_TABLE));
+  if(window._fbOk){
+    try{firebase.database().ref('tag_table').set(TAG_TABLE);}
+    catch(e){console.error('TAG FB:',e);}
+  }
+}
+// Carregar TAGs do Firebase
+setTimeout(()=>{
+  if(window._fbOk){
+    try{
+      firebase.database().ref('tag_table').on('value',snap=>{
+        const v=snap.val();
+        if(v&&Array.isArray(v)&&v.length){
+          TAG_TABLE=v;localStorage.setItem('lt_tag_table',JSON.stringify(TAG_TABLE));updTagCount();
+        }
+      });
+    }catch(e){}
+  }
+},2000);
+
+function rTagLista(){
+  const el=document.getElementById('adm-tag-lista');if(!el)return;
+  const busca=(document.getElementById('adm-tag-busca')?.value||'').toLowerCase();
+  const lista=TAG_TABLE.filter(t=>!busca||(t.tag||'').toLowerCase().includes(busca)||(t.desc||'').toLowerCase().includes(busca)||(t.ccm||'').toLowerCase().includes(busca));
+  const cnt=document.getElementById('adm-tag-count');if(cnt)cnt.textContent=TAG_TABLE.length+' TAGs';
+  if(!lista.length){el.innerHTML='<div style="font-size:11px;color:var(--muted);padding:8px">Nenhum TAG.</div>';return;}
+  el.innerHTML=`<table style="width:100%;border-collapse:collapse;font-size:11px">
+    <thead><tr style="background:var(--card2)">
+      <th style="padding:5px;text-align:left">TAG</th>
+      <th style="padding:5px;text-align:left">Descrição</th>
+      <th style="padding:5px;text-align:left">CCM</th>
+      <th style="padding:5px;width:60px"></th>
+    </tr></thead><tbody>
+    ${lista.map((t,i)=>{const ri=TAG_TABLE.indexOf(t);return`<tr style="background:${i%2===0?'var(--card)':'var(--card2)'}">
+      <td style="padding:5px;font-weight:700;color:var(--sz-aml)">${t.tag||'—'}</td>
+      <td style="padding:5px">${t.desc||'—'}</td>
+      <td style="padding:5px;color:var(--muted)">${t.ccm||'—'}</td>
+      <td style="padding:5px"><div style="display:flex;gap:3px">
+        <button class="btn bs bsm" onclick="editarTag(${ri})">✏️</button>
+        <button class="btn bd2 bsm" onclick="deletarTag(${ri})">🗑</button>
+      </div></td></tr>`;}).join('')}
+    </tbody></table>`;
+}
+let _tagEditIdx=null;
+function abrirModalNovoTag(){
+  _tagEditIdx=null;
+  document.getElementById('modal-tag-title').textContent='➕ Novo TAG';
+  ['mt-tag','mt-desc','mt-ccm'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('modal-tag').classList.add('on');
+  setTimeout(()=>document.getElementById('mt-tag').focus(),100);
+}
+function editarTag(i){
+  _tagEditIdx=i;const t=TAG_TABLE[i];if(!t)return;
+  document.getElementById('modal-tag-title').textContent='✏️ Editar TAG';
+  document.getElementById('mt-tag').value=t.tag||'';
+  document.getElementById('mt-desc').value=t.desc||'';
+  document.getElementById('mt-ccm').value=t.ccm||'';
+  document.getElementById('modal-tag').classList.add('on');
+}
+function salvarTag(){
+  const tag=document.getElementById('mt-tag').value.trim().toUpperCase();
+  const desc=document.getElementById('mt-desc').value.trim().toUpperCase();
+  const ccm=document.getElementById('mt-ccm').value.trim().toUpperCase();
+  if(!desc){toast('⚠️ Preencha a Descrição','err');return;}
+  if(_tagEditIdx!==null) TAG_TABLE[_tagEditIdx]={tag,desc,ccm};
+  else TAG_TABLE.push({tag,desc,ccm});
+  saveTAGTableFB();updTagCount();rTagLista();
+  document.getElementById('modal-tag').classList.remove('on');
+  toast('✔ TAG salvo e sincronizado!');
+}
+function deletarTag(i){
+  if(!confirm('Excluir TAG "'+TAG_TABLE[i]?.tag+'"?'))return;
+  TAG_TABLE.splice(i,1);saveTAGTableFB();updTagCount();rTagLista();toast('🗑️ TAG excluído.');
+}
+
+// ═══ ÁREA COM LINHA ════════════════════════════════════════════════
+function updAreaOpts(){
+  const linha=document.getElementById('flinha-lt')?.value||'';
+  const sel=document.getElementById('farea');if(!sel)return;
+  const todas=['Extração Cavacos','Cozimento','Pré Branqueamento','Depuração','Branqueamento','Laje DDW','Planta Química'];
+  const disp=linha==='L1'?todas.filter(a=>a!=='Laje DDW'):todas;
+  const cur=sel.value;
+  sel.innerHTML='<option value="">— Selecione a Área —</option>'+
+    disp.map(a=>`<option value="${a}"${a===cur?' selected':''}>${a}</option>`).join('');
+  if(cur&&!disp.includes(cur))sel.value='';
+}
+
+// Incluir linha no objeto LT salvo
+const _salvarLT_orig=salvarLT;
+salvarLT=function(){
+  // Injetar linha antes de salvar
+  const linha=document.getElementById('flinha-lt')?.value||'';
+  const _origObj=window._ltObjOverride;
+  window._ltLinhaInject=linha;
+  _salvarLT_orig();
+};
+
+// ═══ AUTOCOMPLETE RESPONSÁVEL NO CARTÃO ════════════════════════════
+const RESP_KEY='lt_cart_resps';
+function getSavedResps(){return JSON.parse(localStorage.getItem(RESP_KEY)||'[]');}
+function saveResp(nome,np){
+  if(!nome&&!np)return;
+  const lista=getSavedResps();
+  if(!lista.find(r=>r.nome===nome&&r.np===np)){
+    lista.unshift({nome,np});if(lista.length>20)lista.pop();
+    localStorage.setItem(RESP_KEY,JSON.stringify(lista));
+  }
+}
+function setupRespAutocomplete(){
+  const inpResp=document.getElementById('fc-resp');
+  const inpNP=document.getElementById('fc-np');
+  if(!inpResp||!inpNP)return;
+  let dlResp=document.getElementById('dl-fc-resp');
+  if(!dlResp){dlResp=document.createElement('datalist');dlResp.id='dl-fc-resp';document.body.appendChild(dlResp);}
+  inpResp.setAttribute('list','dl-fc-resp');
+  const fillDL=()=>{dlResp.innerHTML=getSavedResps().map(r=>`<option value="${r.nome}">`).join('');};
+  inpResp.addEventListener('focus',fillDL);
+  inpResp.addEventListener('change',()=>{
+    const found=getSavedResps().find(r=>r.nome===inpResp.value.trim());
+    if(found&&!inpNP.value)inpNP.value=found.np||'';
+  });
+}
+
+// Extender rAdm para incluir TAGs
+const _rAdm_orig=rAdm;
+rAdm=function(){_rAdm_orig();rTagLista();};
+
+// ═══ CARTÃO FÍSICO SUZANO ══════════════════════════════════════════
 
 function abrirFormCartao(){
   const c=getCB();
@@ -3456,7 +3633,7 @@ function abrirFormCartao(){
     sel.appendChild(o);
   });
   document.getElementById('mform-cartao').classList.add('on');
-  setTimeout(()=>{iniciarCanvas();limparAssinatura();},150);
+  setTimeout(()=>{iniciarCanvas();limparAssinatura();setupRespAutocomplete();},150);
 }
 
 function autoPreencherCartao(){
@@ -3594,6 +3771,9 @@ async function gerarPDFCartaoFisico(){
     }
     if(ass)doc.addImage(ass,'PNG',140,216.5,20,5);
   });
+  // Salvar responsável para autocomplete futuro
+  saveResp(resp, np);
+
   document.getElementById('mform-cartao').classList.remove('on');
   toast('🖨️ '+fontes.length+' cartão(ões) — abrindo impressão...');
   const blob=doc.output('blob');
